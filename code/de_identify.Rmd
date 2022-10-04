@@ -1,0 +1,1255 @@
+---
+title: "De-identifying data from the SLPA survey"
+author: "Sur Herrera Paredes"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: TRUE
+    toc_float: TRUE
+params:
+  full_survey: "data/2022-09-22.full_survey.csv"
+  min_n: 5
+  outdir: "public_data"
+---
+
+This document contains the code to process the raw answerts to the
+the SLPA Moving & Living Expenses Survey 2022, and produce a set of 
+files that can be used for further analysis while trying to prevent
+de-identification of the respondents. To be clear, the steps taken here
+do no guarantee that de-identification is impossible, but should make it
+significantly harder. The input to this R Markdown script should not
+be shared with anyone outside the SLPA team working directly on the results.
+
+The next steps are taken to try to make de-identification harder:
+
+1. Timestamps are removed if they are still in the input.
+2. For each question, all responses are saved in a separate file, and the
+order of the responses is scrambled independently to avoid matching. Scrambling
+is done with seeds from random.org.
+3. For every question, when some group of responses is of a size less than 
+`r params$min_n`, those responses are re-coded re-coded so we can report them
+with groups above this threshold.
+4. For cross-tabulations of interest. A file matching responses for multiple
+questions is only created if answers can be re-coded logically and maintaining
+the minimum group size of `r params$min_n`.
+
+# Setup
+
+Load required libraries
+
+```{r libraries}
+library(tidyverse)
+library(random)
+```
+
+```{r functions}
+write_question_answers <- function(Dat, col, outdir){
+  seed <- randomNumbers(n = 1, min = 1, max = 1000, col = 1)[1,1]
+  dat <- drop_na(Dat[ , col])
+  set.seed(seed)
+  ii <- sample(1:nrow(dat), replace = FALSE)
+  dat <- dat[ii,]
+  
+  filename <- file.path(outdir, paste0("Q", col, ".tsv"))
+  write_tsv(dat, filename, quote = 'all')
+  cat(paste0("Wrote Q", col, " into ", filename, "\n"))
+}
+
+write_crosstab <- function(Dat, outdir){
+  seed <- randomNumbers(n = 1, min = 1, max = 1000, col = 1)[1,1]
+  dat <- drop_na(Dat)
+  set.seed(seed)
+  ii <- sample(1:nrow(dat), replace = FALSE)
+  dat <- dat[ii,]
+  
+  filename <- file.path(outdir,
+                        paste0(paste0(colnames(dat),collapse = "_"), ".tsv"))
+  write_tsv(dat, filename, quote = 'all')
+  cat(paste0("Wrote ", paste(colnames(dat), collapse = " "), " into ", filename, "\n"))
+}
+
+```
+
+
+Prepare output directory. The output of that directory can be shared
+with other people interested in analysis. The SLPA leadership must give 
+approval though. Special care should be given to open ended questions
+since some answers might de-identify respondents.
+
+```{r create outdir}
+dir.create(params$outdir)
+dir.create(file.path(params$outdir, "closed_questions"))
+dir.create(file.path(params$outdir, "open_questions"))
+```
+
+# Read data
+
+We read the data and print the questions (headers of the csv)
+```{r read data}
+Dat <- read_csv(params$full_survey,
+                col_types = 'c')
+```
+
+If timestamp exists we remove it
+
+```{r remove timestamps}
+ii <- colnames(Dat) %>% str_detect(regex("Timestamp", ignore_case = TRUE), negate = TRUE)
+Dat <- Dat[,ii]
+```
+Now we list the questions
+```{r qeustions}
+filename <- file.path(params$outdir, "questions.tsv")
+tibble(id = paste0("Q", 1:ncol(Dat)),
+       question = colnames(Dat)) %>%
+  write_tsv(filename)
+colnames(Dat)
+```
+
+# Questions
+
+## `r colnames(Dat)[1]`
+
+```{r "Q `r colnames(Dat)[1]`"}
+col <- 1
+outdir <- file.path(params$outdir, "closed_questions")
+if(any(table(Dat[, col]) < params$min_n)){
+  stop("ERROR: No recode rules")
+}else{
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}
+```
+## `r colnames(Dat)[2]`
+
+```{r "Q `r colnames(Dat)[2]`"}
+col <- 2
+outdir <- file.path(params$outdir, "closed_questions")
+if(any(table(Dat[, col]) < params$min_n)){
+  cat("Grouping\n")
+  vals <- table(Dat[, col])
+  to_replace <- names(vals)[ vals < params$min_n ]
+  
+  if( sum(vals[ to_replace ]) >= params$min_n ){
+    Dat[ ,col ] <- replace(Dat[, col, drop = TRUE], Dat[, col, drop = TRUE] %in% to_replace, "Other")
+    write_question_answers(Dat = Dat, col = col, outdir = outdir)
+  }else{
+    stop("Recode rule not working")
+  }
+  
+}else{
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}
+```
+
+## `r colnames(Dat)[3]`
+
+```{r "Q `r colnames(Dat)[3]`"}
+col <- 3
+outdir <- file.path(params$outdir, "closed_questions")
+if(any(table(Dat[, col]) < params$min_n)){
+  cat("Grouping\n")
+  # First order responses
+  Dat[,col] <- factor(Dat[,col, drop = TRUE],
+                      levels = c("$300-$600",
+                                 "$601-$1000",
+                                 "$1001-$1700",
+                                 "$1701-$2500",
+                                 "$2500-$3000",
+                                 "more than $3000"))
+
+
+  vals <- table(Dat[, col])
+  i <- 1
+  while(any(vals < params$min_n)){
+    if(vals[i] < params$min_n){
+      if(i == length(vals)){
+        stop("MERGE RULE MISSING")
+      }else{
+        # Get new range
+        start <- str_split(names(vals)[i], "[- ]")[[1]][1]
+        end <- str_split(names(vals)[i + 1], "[- ]")[[1]]
+        
+        if(end[1] == "more"){
+          new_val <- paste0("more than", start)
+        }else{
+          end <- end[length(end)]
+          new_val <- paste0(start, "-", end)
+        }
+        
+        # Substitute new range
+        dat <- Dat[,col,drop=TRUE]
+        levels(dat)[i] <- levels(dat)[i + 1]
+        levels(dat)[i] <- new_val
+        Dat[,col] <- dat
+        
+        i <- i - 1
+      }
+    }
+    
+    vals <- table(Dat[, col])
+    i <- i + 1
+    i <- i %% length(vals)
+    
+  }
+ 
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}else{
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}
+```
+
+## `r colnames(Dat)[4]`
+
+```{r "Q `r colnames(Dat)[4]`"}
+col <- 4
+outdir <- file.path(params$outdir, "closed_questions")
+if(any(table(Dat[, col]) < params$min_n)){
+  cat("Grouping\n")
+  stop("ERROR: No recode rules")
+}else{
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}
+```
+
+## `r colnames(Dat)[5]`
+
+```{r "Q `r colnames(Dat)[5]`"}
+col <- 5
+outdir <- file.path(params$outdir, "closed_questions")
+if(any(table(Dat[, col]) < params$min_n)){
+  cat("Grouping\n")
+  # First order responses
+  # vals <- table(Dat[, col])
+  # vals
+  Dat[,col] <- factor(Dat[,col, drop = TRUE],
+                      levels = c("Did not pay rent",
+                                 "less than $100",
+                                 "$101-$500",
+                                 "$501-$1000",
+                                 "$1001-$2000",
+                                 "more than $2000"))
+
+
+  vals <- table(Dat[, col])
+  vals
+  i <- 1
+  while(any(vals < params$min_n)){
+    if(vals[i] < params$min_n){
+      if(i == length(vals)){
+        stop("MERGE RULE MISSING")
+      }else{
+        # Get new range
+        start <- str_split(names(vals)[i], "[- ]")[[1]]
+        if(start[1] == "less"){
+          start <- "less than"
+          sepchar <- " "
+        }else if(start[1] == "Did"){
+          start <- "$0"
+          sepchar <- "-"
+        }else{
+          start <- start[1]
+          sepchar <- "-"
+        }
+        
+        end <- str_split(names(vals)[i + 1], "[- ]")[[1]]
+        
+        if(end[1] == "more"){
+          new_val <- paste0("more than ", start)
+        }else{
+          end <- end[length(end)]
+          new_val <- paste0(start, sepchar , end)
+        }
+        
+        # Substitute new range
+        dat <- Dat[,col,drop=TRUE]
+        levels(dat)[i] <- levels(dat)[i + 1]
+        levels(dat)[i] <- new_val
+        Dat[,col] <- dat
+        
+        i <- i - 1
+      }
+    }
+    
+    vals <- table(Dat[, col])
+    i <- i + 1
+    i <- i %% length(vals)
+    
+  }
+  table(Dat[,col])
+ 
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}else{
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}
+```
+## `r colnames(Dat)[6]`
+
+```{r "Q `r colnames(Dat)[6]`"}
+col <- 6
+outdir <- file.path(params$outdir, "closed_questions")
+if(any(table(Dat[, col]) < params$min_n)){
+  cat("Grouping\n")
+  # First order responses
+  # vals <- table(Dat[, col])
+  # vals
+  Dat[,col] <- factor(Dat[,col, drop = TRUE],
+                      levels = c("$1000-$2000",
+                                 "$2001-$3000",
+                                 "$3001-$4000",
+                                 "$4001-$5000",
+                                 "$5000-$6000",
+                                 "more than $6000"))
+
+
+  vals <- table(Dat[, col])
+  # vals
+  i <- 1
+  while(any(vals < params$min_n)){
+    if(vals[i] < params$min_n){
+      if(i == length(vals)){
+        stop("MERGE RULE MISSING")
+      }else{
+        # Get new range
+        start <- str_split(names(vals)[i], "[- ]")[[1]]
+        if(start[1] == "less"){
+          start <- "less than"
+          sepchar <- " "
+        }else if(start[1] == "Did"){
+          start <- "$0"
+          sepchar <- "-"
+        }else{
+          start <- start[1]
+          sepchar <- "-"
+        }
+        
+        end <- str_split(names(vals)[i + 1], "[- ]")[[1]]
+        
+        if(end[1] == "more"){
+          new_val <- paste0("more than ", start)
+        }else{
+          end <- end[length(end)]
+          new_val <- paste0(start, sepchar , end)
+        }
+        
+        # Substitute new range
+        dat <- Dat[,col,drop=TRUE]
+        levels(dat)[i] <- levels(dat)[i + 1]
+        levels(dat)[i] <- new_val
+        Dat[,col] <- dat
+        
+        i <- i - 1
+      }
+    }
+    
+    vals <- table(Dat[, col])
+    i <- i + 1
+    i <- i %% length(vals)
+    
+  }
+  table(Dat[,col])
+ 
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}else{
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}
+
+```
+
+## `r colnames(Dat)[7]`
+
+```{r "Q `r colnames(Dat)[7]`"}
+col <- 7
+outdir <- file.path(params$outdir, "closed_questions")
+if(any(table(Dat[, col]) < params$min_n)){
+  cat("Grouping\n")
+  # First order responses
+  # vals <- table(Dat[, col])
+  # vals
+  Dat[,col] <- factor(Dat[,col, drop = TRUE],
+                      levels = c("less than $500",
+                                 "$500-$1000",
+                                 "$1001-$1500",
+                                 "$1501-$2000",
+                                 "$2001-$2500",
+                                 "$2501-$3000",
+                                 "more than $3000"))
+
+
+  vals <- table(Dat[, col])
+  vals
+  i <- 1
+  while(any(vals < params$min_n)){
+    if(vals[i] < params$min_n){
+      if(i == length(vals)){
+        stop("MERGE RULE MISSING")
+      }else{
+        # Get new range
+        start <- str_split(names(vals)[i], "[- ]")[[1]]
+        if(start[1] == "less"){
+          start <- "less than"
+          sepchar <- " "
+        }else if(start[1] == "Did"){
+          start <- "$0"
+          sepchar <- "-"
+        }else{
+          start <- start[1]
+          sepchar <- "-"
+        }
+        
+        end <- str_split(names(vals)[i + 1], "[- ]")[[1]]
+        
+        if(end[1] == "more"){
+          new_val <- paste0("more than ", start)
+        }else{
+          end <- end[length(end)]
+          new_val <- paste0(start, sepchar , end)
+        }
+        
+        # Substitute new range
+        dat <- Dat[,col,drop=TRUE]
+        levels(dat)[i] <- levels(dat)[i + 1]
+        levels(dat)[i] <- new_val
+        Dat[,col] <- dat
+        
+        i <- i - 1
+      }
+    }
+    
+    vals <- table(Dat[, col])
+    i <- i + 1
+    i <- i %% length(vals)
+    
+  }
+  table(Dat[,col])
+ 
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}else{
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}
+
+```
+
+## `r colnames(Dat)[8]`
+
+```{r "Q `r colnames(Dat)[8]`"}
+col <- 8
+outdir <- file.path(params$outdir, "closed_questions")
+if(any(table(Dat[, col]) < params$min_n)){
+  cat("Grouping\n")
+  stop("ERROR: No recode rules")
+}else{
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}
+```
+
+## `r colnames(Dat)[9]`
+
+```{r "Q `r colnames(Dat)[9]`"}
+col <- 9
+outdir <- file.path(params$outdir, "closed_questions")
+if(any(table(Dat[, col]) < params$min_n)){
+  cat("Grouping\n")
+  vals <- table(Dat[, col])
+  to_replace <- names(vals)[ vals < params$min_n ]
+  
+  if( sum(vals[ to_replace ]) >= params$min_n ){
+    Dat[ ,col ] <- replace(Dat[, col, drop = TRUE], Dat[, col, drop = TRUE] %in% to_replace, "Other")
+    write_question_answers(Dat = Dat, col = col, outdir = outdir)
+  }else{
+    stop("Recode rule not working")
+  }
+  
+}else{
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}
+```
+## `r colnames(Dat)[10]`
+
+```{r "Q `r colnames(Dat)[10]`"}
+col <- 10
+outdir <- file.path(params$outdir, "closed_questions")
+if(any(table(Dat[, col]) < params$min_n)){
+  cat("Grouping\n")
+  vals <- table(Dat[, col])
+  vals
+  to_replace <- names(vals)[ vals < params$min_n ]
+  
+  stop("NO RECODE RULE")
+  
+}else{
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}
+```
+## `r colnames(Dat)[11]`
+The way this is encoded in the google form this is an open question, though 
+it should be recoded as a year set of answers
+
+```{r "Q `r colnames(Dat)[11]`"}
+col <- 11
+outdir <- file.path(params$outdir, "closed_questions")
+
+# Re code into years
+dat <- Dat[,col, drop = TRUE]
+dat <- replace(dat, dat == "2022 01", "2022")
+dat <- replace(dat, dat == "summer 2021", "2022")
+dat <- replace(dat, dat == "October 2021", "2022")
+dat <- replace(dat, dat == "February 2022", "2022")
+dat <- replace(dat, dat == "November 2020", "2020")
+dat <- replace(dat, dat == "August 2022", "2022")
+dat <- replace(dat, dat == "Nov 2020", "2020")
+dat <- replace(dat, dat == "2021 (July)", "2021")
+dat <- replace(dat, dat == "07/2017", "2017")
+dat[ which(str_detect(dat, "; started postdoc in")) ] <- 2020
+dat <- replace(dat, dat == "07/2017", "2017")
+unique(dat)
+if( any(!(dat %in% c("2012", "2013", "2014", "2015", 
+           "2016", "2017", "2018","2019", 
+           "2020", "2021", "2022", NA))) ){
+  stop("ERROR: UNEXPECTED YEAR VALUE")
+}
+Dat[,col] <- dat
+if(any(table(Dat[, col]) < params$min_n)){
+  # First order responses
+  # vals <- table(Dat[, col])
+  # vals
+  cat("Grouping\n")
+  Dat[,col] <- factor(Dat[,col, drop = TRUE],
+                      levels = c("2012",
+                                 "2013", 
+                                 "2014", "2015", 
+           "2016", "2017", "2018","2019", 
+           "2020", "2021", "2022")) %>% droplevels()
+
+
+  vals <- table(Dat[, col])
+  vals
+  i <- 1
+  while(any(vals < params$min_n)){
+    if(vals[i] < params$min_n){
+      if(i == length(vals)){
+        stop("MERGE RULE MISSING")
+      }else{
+        # Get new range
+        start <- str_split(names(vals)[i], "[- ]")[[1]]
+        if(start[1] == "less"){
+          start <- "less than"
+          sepchar <- " "
+        }else if(start[1] == "Did"){
+          start <- "$0"
+          sepchar <- "-"
+        }else{
+          start <- start[1]
+          sepchar <- "-"
+        }
+        
+        end <- str_split(names(vals)[i + 1], "[- ]")[[1]]
+        
+        if(end[1] == "more"){
+          new_val <- paste0("more than ", start)
+        }else{
+          end <- end[length(end)]
+          new_val <- paste0(start, sepchar , end)
+        }
+        
+        # Substitute new range
+        dat <- Dat[,col,drop=TRUE]
+        levels(dat)[i] <- levels(dat)[i + 1]
+        levels(dat)[i] <- new_val
+        Dat[,col] <- dat
+        
+        i <- i - 1
+      }
+    }
+    
+    vals <- table(Dat[, col])
+    i <- i + 1
+    i <- i %% length(vals)
+    
+  }
+  table(Dat[,col])
+ 
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+  
+}else{
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}
+```
+## `r colnames(Dat)[12]`
+
+```{r Q12}
+col <- 12
+outdir <- file.path(params$outdir, "closed_questions")
+if(any(table(Dat[, col]) < params$min_n)){
+  cat("Grouping\n")
+  vals <- table(Dat[, col])
+  vals
+  to_replace <- names(vals)[ vals < params$min_n ]
+  
+  stop("NO RECODE RULE")
+  
+}else{
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}
+```
+## `r colnames(Dat)[13]`
+This question is mostly numeric in answers, though some
+people provided additional details. Those details need to be saved as open
+answers. And the numeric values need to be re-coded.
+
+```{r Q13 open}
+col <- 13
+
+# First save all responses with text
+outdir <- file.path(params$outdir, "open_questions")
+dat <- Dat[ , col, drop = FALSE ]
+dat <- dat %>%
+  mutate(across(.cols = 1, 
+                .fns = function(x) {
+                  print(class(x))
+                  x %>% str_detect("[a-zA-z]")},
+                .names = "ii")) %>%
+  filter(ii) %>% select(-ii)
+
+# Add dummy vars
+for(i in 1:(col - 1)){
+  dat <- bind_cols("a",
+            dat)
+}
+write_question_answers(Dat = dat, col = col, outdir = outdir)
+```
+
+Now the numeric part of this question
+
+```{r "Q `r colnames(Dat)[13]`"}
+col <- 13
+outdir <- file.path(params$outdir, "closed_questions")
+dat <- Dat[ , col, drop = TRUE ]
+
+# First re-code numeric inputs
+dat <- dat %>%
+  str_replace(pattern = "^\\$([0-9]+)$", replacement = "\\1") %>%
+  str_replace(pattern = "^~([0-9]+)$", replacement = "\\1") %>%
+  str_replace(pattern = "^~\\$([0-9]+)$", replacement = "\\1") %>%
+  str_replace(pattern = "^~([0-9]+)[.]00$", replacement = "\\1") %>%
+  str_replace(pattern = "^([0-9]+) dollars$", replacement = "\\1")  %>%
+  str_replace(pattern = "^\\$([0-9]+) for both cars$", replacement = "\\1") %>%
+  str_replace(pattern = "^([0-9]+) \\(I mostly bike\\)$", replacement = "\\1") %>%
+  str_replace(pattern = "^([0-9]+) USD$", replacement = "\\1") %>%
+  str_replace(pattern = "^I bike. So zero$", replacement = "0") %>%
+  str_replace(pattern = "^\\$([0-9]+) \\(bicycle maintenance\\)$", replacement = "\\1") 
+dat
+
+# Manually modify NA cases (saved as text)
+ii <- which(str_detect(dat, fixed("negligible / changes (I bike & caltrain to work w/ Go Pass)")))
+dat[ii] <- NA
+ii <- which(str_detect(dat, fixed("+500")))
+dat[ii] <- "500"
+ii <- which(str_detect(dat, fixed("Car not affordable")))
+dat[ii] <- NA
+ii <- which(str_detect(dat, fixed("I bike to campus, use the car rarely")))
+dat[ii] <- NA
+ii <- which(str_detect(dat, fixed("~$250-300")))
+dat[ii] <- "250-300"
+ii <- which(str_detect(dat, fixed("Less than $10")))
+dat[ii] <- "5"
+ii <- which(str_detect(dat, fixed("not sure (have been here less than a month)")))
+dat[ii] <- NA
+
+ii <- which(str_detect(dat, fixed("UBER")))
+dat[ii] <- NA
+dat
+
+# Get mean of ranges
+ii <- which(dat %>% str_detect("^[0-9]+-[0-9]+$"))
+ranges <- dat[ii]
+ranges <- ranges %>% 
+  str_split("-") %>%
+  map_dbl(function(x){
+    x <- as.numeric(x)
+    sum(x) / length(x)})
+dat[ii] <- ranges  
+# Remove anything left with text
+ii <- which(dat %>% str_detect("[a-zA-z]"))
+dat[ii] <- NA
+dat <- as.numeric(dat)
+
+dat <- cut(c(dat), breaks = c(0, 100, 200, 300,500, max(dat, na.rm = TRUE)))
+levels(dat) <- c("less than $100",
+                 "$101-$200",
+                 "$201-$300",
+                 "$301-$500",
+                 "more than $500")
+Dat[ ,col ] <- dat
+if(any(table(Dat[, col]) < params$min_n)){
+  cat("Grouping\n")
+  vals <- table(Dat[, col])
+  vals
+  to_replace <- names(vals)[ vals < params$min_n ]
+  
+  stop("NO RECODE RULE")
+  
+}else{
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}
+```
+
+## `r colnames(Dat)[14]`
+
+```{r Q14"}
+col <- 14
+outdir <- file.path(params$outdir, "closed_questions")
+if(any(table(Dat[, col]) < params$min_n)){
+  cat("Grouping\n")
+  
+  dat <- Dat[,col, drop = TRUE]
+  ii <- which(dat >= 3)
+  dat <- as.character(dat)
+  dat[ii] <- "3 or more"
+  Dat[,col] <- dat
+  
+  if(any(table(Dat[, col]) < params$min_n)){
+    stop("Grouping insufficient", call. = TRUE)
+  }
+  
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}else{
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}
+```
+
+## `r colnames(Dat)[15]`
+
+```{r Q15"}
+col <- 15
+outdir <- file.path(params$outdir, "closed_questions")
+if(any(table(Dat[, col]) < params$min_n)){
+  vals <- table(Dat[, col])
+  vals
+  to_replace <- names(vals)[ vals < params$min_n ]
+  
+  stop("ERROR: No recode rules")
+}else{
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}
+```
+
+## `r colnames(Dat)[16]`
+
+```{r Q16}
+col <- 16
+outdir <- file.path(params$outdir, "closed_questions")
+if(any(table(Dat[, col]) < params$min_n)){
+  # First order responses
+  # vals <- table(Dat[, col])
+  # vals
+  cat("Grouping\n")
+  Dat[,col] <- factor(Dat[,col, drop = TRUE],
+                      levels = c("$500-$1000",
+                                 "$1001-$1500",
+                                 "$1501-$2000",
+                                 "$2001-$2500",
+                                 "$2500-$3000",
+                                 "more than $3000"))
+
+
+  vals <- table(Dat[, col])
+  vals
+  i <- 1
+  while(any(vals < params$min_n)){
+    if(vals[i] < params$min_n){
+      if(i == length(vals)){
+        stop("MERGE RULE MISSING")
+      }else{
+        # Get new range
+        start <- str_split(names(vals)[i], "[- ]")[[1]]
+        if(start[1] == "less"){
+          start <- "less than"
+          sepchar <- " "
+        }else if(start[1] == "Did"){
+          start <- "$0"
+          sepchar <- "-"
+        }else{
+          start <- start[1]
+          sepchar <- "-"
+        }
+        
+        end <- str_split(names(vals)[i + 1], "[- ]")[[1]]
+        
+        if(end[1] == "more"){
+          new_val <- paste0("more than ", start)
+        }else{
+          end <- end[length(end)]
+          new_val <- paste0(start, sepchar , end)
+        }
+        
+        # Substitute new range
+        dat <- Dat[,col,drop=TRUE]
+        levels(dat)[i] <- levels(dat)[i + 1]
+        levels(dat)[i] <- new_val
+        Dat[,col] <- dat
+        
+        i <- i - 1
+      }
+    }
+    
+    vals <- table(Dat[, col])
+    i <- i + 1
+    i <- i %% length(vals)
+    
+  }
+  table(Dat[,col])
+ 
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}else{
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}
+
+```
+
+## `r colnames(Dat)[17]`
+
+```{r Q17}
+col <- 17
+outdir <- file.path(params$outdir, "closed_questions")
+if(any(table(Dat[, col]) < params$min_n)){
+  # First order responses
+  # vals <- table(Dat[, col])
+  # vals
+  cat("Grouping\n")
+  Dat[,col] <- factor(Dat[,col, drop = TRUE],
+                      levels = c("less then $100",
+                                 "$101-$300",
+                                 "$301-$500",
+                                 "$501-$700",
+                                 "more than $700"))
+  #!!!!
+  dat <- Dat[,col,drop = TRUE]
+  levels(dat)[1] <- "less than $100"
+  Dat[,col] <- dat
+
+  vals <- table(Dat[, col])
+  # vals
+  i <- 1
+  while(any(vals < params$min_n)){
+    if(vals[i] < params$min_n){
+      if(i == length(vals)){
+        stop("MERGE RULE MISSING")
+      }else{
+        # Get new range
+        start <- str_split(names(vals)[i], "[- ]")[[1]]
+        if(start[1] == "less"){
+          start <- "less than"
+          sepchar <- " "
+        }else if(start[1] == "Did"){
+          start <- "$0"
+          sepchar <- "-"
+        }else{
+          start <- start[1]
+          sepchar <- "-"
+        }
+        
+        end <- str_split(names(vals)[i + 1], "[- ]")[[1]]
+        
+        if(end[1] == "more"){
+          new_val <- paste0("more than ", start)
+        }else{
+          end <- end[length(end)]
+          new_val <- paste0(start, sepchar , end)
+        }
+        
+        # Substitute new range
+        dat <- Dat[,col,drop=TRUE]
+        levels(dat)[i] <- levels(dat)[i + 1]
+        levels(dat)[i] <- new_val
+        Dat[,col] <- dat
+        
+        i <- i - 1
+      }
+    }
+    
+    vals <- table(Dat[, col])
+    i <- i + 1
+    i <- i %% length(vals)
+    
+  }
+  table(Dat[,col])
+  
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}else{
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}
+
+```
+## `r colnames(Dat)[18]`
+
+```{r Q18 open}
+col <- 18
+outdir <- file.path(params$outdir, "open_questions")
+write_question_answers(Dat = Dat, col = col, outdir = outdir)
+```
+
+
+## `r colnames(Dat)[19]`
+
+```{r Q19}
+col <- 19
+outdir <- file.path(params$outdir, "closed_questions")
+if(any(table(Dat[, col]) < params$min_n)){
+  cat("Grouping\n")
+  vals <- table(Dat[, col])
+  vals
+  to_replace <- names(vals)[ vals < params$min_n ]
+  to_replace <- c(to_replace, "Other")
+
+  
+  if( sum(vals[ to_replace ]) >= params$min_n ){
+    Dat[ ,col ] <- replace(Dat[, col, drop = TRUE], Dat[, col, drop = TRUE] %in% to_replace, "Other")
+    write_question_answers(Dat = Dat, col = col, outdir = outdir)
+  }else{
+    stop("Recode rule not working")
+  }
+}else{
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}
+```
+
+## `r colnames(Dat)[20]`
+
+```{r Q20}
+col <- 20
+outdir <- file.path(params$outdir, "closed_questions")
+if(any(table(Dat[, col]) < params$min_n)){
+  cat("Grouping\n")
+  vals <- table(Dat[, col])
+  vals
+  # to_replace <- names(vals)[ vals < params$min_n ]
+  to_replace <- c("4", "5")
+  if(all(vals[to_replace] > params$min_n)){
+    stop("NO NEED TO AGGREGATE")
+  }
+  
+  if( sum(vals[ to_replace ]) >= params$min_n ){
+    Dat[ ,col ] <- replace(Dat[, col, drop = TRUE], Dat[, col, drop = TRUE] %in% to_replace, "4-5")
+    write_question_answers(Dat = Dat, col = col, outdir = outdir)
+  }else{
+    stop("Recode rule not working")
+  }
+}else{
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}
+```
+## `r colnames(Dat)[21]`
+
+```{r Q21"}
+col <- 21
+outdir <- file.path(params$outdir, "closed_questions")
+if(any(table(Dat[, col]) < params$min_n)){
+  vals <- table(Dat[, col])
+  vals
+  to_replace <- names(vals)[ vals < params$min_n ]
+  
+  stop("ERROR: No recode rules")
+}else{
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}
+```
+
+## `r colnames(Dat)[22]`
+
+```{r Q22"}
+col <- 22
+outdir <- file.path(params$outdir, "closed_questions")
+if(any(table(Dat[, col]) < params$min_n)){
+  vals <- table(Dat[, col])
+  vals
+  to_replace <- names(vals)[ vals < params$min_n ]
+  
+  stop("ERROR: No recode rules")
+}else{
+  write_question_answers(Dat = Dat, col = col, outdir = outdir)
+}
+```
+## `r colnames(Dat)[23]`
+
+```{r Q23 open}
+col <- 23
+outdir <- file.path(params$outdir, "open_questions")
+write_question_answers(Dat = Dat, col = col, outdir = outdir)
+```
+
+# Cross tabulations
+
+First create directory for cross tabs
+
+```{r}
+dir.create(file.path(params$outdir, "crosstabs"))
+```
+
+
+# Q1 & Q2
+```{r}
+cols <- c(1, 2)
+outdir <- file.path(params$outdir, "crosstabs")
+dat <- Dat[,cols]
+# table(dat)
+# ftable(dat)
+colnames(dat) <- paste0("Q", cols)
+write_crosstab(dat, outdir = outdir)
+```
+# Q2 & Q8
+```{r}
+cols <- c(2, 6)
+outdir <- file.path(params$outdir, "crosstabs")
+dat <- Dat[,cols]
+# table(dat)
+# ftable(dat)
+colnames(dat) <- paste0("Q", cols)
+write_crosstab(dat, outdir = outdir)
+```
+
+
+# Q2 & Q8
+```{r}
+cols <- c(2, 8)
+outdir <- file.path(params$outdir, "crosstabs")
+dat <- Dat[,cols]
+# table(dat)
+# ftable(dat)
+colnames(dat) <- paste0("Q", cols)
+write_crosstab(dat, outdir = outdir)
+```
+
+# Q1 & Q2 & Q12
+```{r}
+cols <- c(1, 2, 12)
+outdir <- file.path(params$outdir, "crosstabs")
+dat <- Dat[,cols]
+# ftable(dat)
+colnames(dat) <- paste0("Q", cols)
+write_crosstab(dat, outdir = outdir)
+```
+
+
+## Q1 & Q3
+```{r}
+cols <- c(1, 3)
+outdir <- file.path(params$outdir, "crosstabs")
+dat <- Dat[,cols]
+colnames(dat) <- paste0("Q", cols)
+write_crosstab(dat, outdir = outdir)
+```
+## Q1 & Q4
+```{r}
+cols <- c(1, 4)
+outdir <- file.path(params$outdir, "crosstabs")
+dat <- Dat[,cols]
+colnames(dat) <- paste0("Q", cols)
+# table(dat)
+# ftable(dat)
+write_crosstab(dat, outdir = outdir)
+```
+
+## Q1 & Q6 & Q7
+```{r}
+cols <- c(1, 6, 7)
+outdir <- file.path(params$outdir, "crosstabs")
+dat <- Dat[,cols]
+colnames(dat)
+colnames(dat) <- paste0("Q", cols)
+# ftable(dat)
+write_crosstab(dat, outdir = outdir)
+```
+
+## Q6 & Q21
+```{r}
+cols <- c(6, 21)
+outdir <- file.path(params$outdir, "crosstabs")
+dat <- Dat[,cols]
+colnames(dat)
+colnames(dat) <- paste0("Q", cols)
+# ftable(dat)
+write_crosstab(dat, outdir = outdir)
+```
+
+
+## Q7 & Q21
+```{r}
+cols <- c(7, 21)
+outdir <- file.path(params$outdir, "crosstabs")
+dat <- Dat[,cols]
+colnames(dat)
+colnames(dat) <- paste0("Q", cols)
+# ftable(dat)
+write_crosstab(dat, outdir = outdir)
+```
+
+## Q1, Q8 & Q9
+```{r}
+cols <- c(1, 8, 9)
+outdir <- file.path(params$outdir, "crosstabs")
+dat <- Dat[,cols]
+colnames(dat)
+colnames(dat) <- paste0("Q", cols)
+# ftable(dat)
+write_crosstab(dat, outdir = outdir)
+```
+## Q1 & Q10
+```{r}
+cols <- c(1, 10)
+outdir <- file.path(params$outdir, "crosstabs")
+dat <- Dat[,cols]
+colnames(dat)
+colnames(dat) <- paste0("Q", cols)
+# ftable(dat)
+write_crosstab(dat, outdir = outdir)
+```
+## Q1 & Q11
+```{r}
+cols <- c(1, 11)
+outdir <- file.path(params$outdir, "crosstabs")
+dat <- Dat[,cols]
+colnames(dat)
+colnames(dat) <- paste0("Q", cols)
+# ftable(dat)
+write_crosstab(dat, outdir = outdir)
+```
+
+
+## Q11 & Q21
+```{r}
+cols <- c(11, 21)
+outdir <- file.path(params$outdir, "crosstabs")
+dat <- Dat[,cols]
+colnames(dat)
+colnames(dat) <- paste0("Q", cols)
+# ftable(dat)
+write_crosstab(dat, outdir = outdir)
+```
+
+## Q1, Q12 & Q13
+```{r}
+cols <- c(1, 12, 13)
+outdir <- file.path(params$outdir, "crosstabs")
+dat <- Dat[,cols]
+colnames(dat)
+colnames(dat) <- paste0("Q", cols)
+# ftable(dat)
+write_crosstab(dat, outdir = outdir)
+```
+
+## Q1, Q12 & Q21
+```{r}
+cols <- c(1, 12, 21)
+outdir <- file.path(params$outdir, "crosstabs")
+dat <- Dat[,cols]
+colnames(dat)
+colnames(dat) <- paste0("Q", cols)
+# ftable(dat)
+write_crosstab(dat, outdir = outdir)
+```
+
+## Q1 & Q14
+```{r}
+cols <- c(1, 14)
+outdir <- file.path(params$outdir, "crosstabs")
+dat <- Dat[,cols]
+colnames(dat)
+colnames(dat) <- paste0("Q", cols)
+# ftable(dat)
+write_crosstab(dat, outdir = outdir)
+```
+
+## Q1 & Q15
+```{r}
+cols <- c(1, 15)
+outdir <- file.path(params$outdir, "crosstabs")
+dat <- Dat[,cols]
+colnames(dat)
+colnames(dat) <- paste0("Q", cols)
+# ftable(dat)
+write_crosstab(dat, outdir = outdir)
+```
+
+## Q1, Q5 & Q16
+```{r}
+cols <- c(1, 5, 16)
+outdir <- file.path(params$outdir, "crosstabs")
+dat <- Dat[,cols]
+colnames(dat)
+colnames(dat) <- paste0("Q", cols)
+# ftable(dat)
+write_crosstab(dat, outdir = outdir)
+```
+
+## Q1, Q17
+```{r}
+cols <- c(1, 17)
+outdir <- file.path(params$outdir, "crosstabs")
+dat <- Dat[,cols]
+colnames(dat)
+colnames(dat) <- paste0("Q", cols)
+# ftable(dat)
+write_crosstab(dat, outdir = outdir)
+```
+
+## Q1, Q18
+```{r}
+cols <- c(1, 18)
+outdir <- file.path(params$outdir, "crosstabs")
+dat <- Dat[,cols]
+colnames(dat)
+colnames(dat) <- paste0("Q", cols)
+# ftable(dat)
+write_crosstab(dat, outdir = outdir)
+```
+
+## Q1, Q16, Q19
+```{r}
+cols <- c(1, 16, 19)
+outdir <- file.path(params$outdir, "crosstabs")
+dat <- Dat[,cols]
+colnames(dat)
+colnames(dat) <- paste0("Q", cols)
+# ftable(dat)
+write_crosstab(dat, outdir = outdir)
+```
+## Q1, Q20 & Q21
+```{r}
+cols <- c(1, 20, 21)
+outdir <- file.path(params$outdir, "crosstabs")
+dat <- Dat[,cols]
+colnames(dat)
+colnames(dat) <- paste0("Q", cols)
+# ftable(dat)
+write_crosstab(dat, outdir = outdir)
+```
+
+
+```{r}
+cols <- c(1, 22)
+outdir <- file.path(params$outdir, "crosstabs")
+dat <- Dat[,cols]
+colnames(dat)
+colnames(dat) <- paste0("Q", cols)
+# ftable(dat)
+write_crosstab(dat, outdir = outdir)
+```
+
+
+## Q1, Q23
+```{r}
+cols <- c(1, 23)
+outdir <- file.path(params$outdir, "crosstabs")
+dat <- Dat[,cols]
+colnames(dat)
+colnames(dat) <- paste0("Q", cols)
+# ftable(dat)
+write_crosstab(dat, outdir = outdir)
+```
+
+
+# Session Info
+
+```{r}
+sessionInfo()
+```
+
