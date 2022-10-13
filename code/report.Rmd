@@ -1,0 +1,1871 @@
+---
+title: "Moving & living expenses survey "
+author: "Stanford Latinx Postdoc Association"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown
+params:
+  input: "public_data"
+  outdir: "output"
+knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_file = file.path(dirname(inputFile), 'report_draft9.html')) })
+---
+
+```{r setup, echo = FALSE, warning=FALSE, error=FALSE, message=FALSE}
+library(tidyverse)
+Questions <- read_tsv(file.path(params$input, "questions.tsv"),
+                      col_types = 'c')
+Questions <- set_names(Questions$question, Questions$id)
+cost_palette <- colorRampPalette(c("#fff5eb","#fd8d3c","#7f2704"))
+yes_no_palette <- c("#f2f0f7", "#9e9ac8",  "#4a1486")
+dir.create(params$outdir)
+basic_theme <-   theme_classic() +
+  theme(legend.title = element_blank(),
+        legend.position = "bottom",
+        axis.text = element_text(size = 14),
+        axis.title.x = element_blank())
+basic_theme_flipped <-   theme_classic() +
+  theme(legend.title = element_blank(),
+        legend.position = "bottom",
+        axis.text = element_text(size = 14),
+        axis.title.y = element_blank())
+```
+
+```{r functions, echo=FALSE}
+read_crosstab <- function(questions, Latinx = "Q1"){
+# Order questions numerically & create file name
+questions <- questions[ order(as.numeric(str_remove(questions, "^Q"))) ]
+crosstab_file <- file.path(params$input,
+                           "crosstabs",
+                           paste0(paste(questions, collapse = "_"), ".tsv"))
+
+  
+  
+  Dat <- read_tsv(crosstab_file,
+                  col_types = 'c')
+  if(!is.null(Latinx)){
+    Dat[, Latinx] <- ifelse(Dat[,Latinx] == "Yes", "Latinx", "Other")
+  }
+  
+  Dat
+}
+```
+
+# About
+
+This website contains the results of the 2022 "Moving and living expenses
+survey" of the **Stanford Latinx Postdoc Association**. The results are
+presented rigorously and systematically, and as openly and transparently as
+possible for all the community to see. We include a
+[summary of major findings](#summary), as well as sections on
+[moving costs](#moving), [housing](#housing),
+[transportation](#transportation), [food](#food),
+[dependents and partners](#dependents_partners), [financials](#financials),
+and [qualitative results](#qualitative) from open questions. 
+
+We invite you to read the report and share it with the Stanford community
+at large, including postdocs, faculty, students, staff, administrators, 
+and alumni as well as with the broader academic community.
+
+Based on the results of the survey, the **Stanford Latinx Postdoc Association**
+is releasing an
+[open letter](https://docs.google.com/document/d/1d8Sx1r_AHKMd9hgnYGZBssYSgvp7jC14TfoOOMsM0M4/edit?usp=sharing)
+where **we ask that postdocs are no longer required to sacrifice their well-being in order to be able to be part of the Stanford community***,
+and we include a specific proposal to help our community
+overcome one of the key barriers we encounter. We invite you to
+[read](https://docs.google.com/document/d/1d8Sx1r_AHKMd9hgnYGZBssYSgvp7jC14TfoOOMsM0M4/edit?usp=sharing) and
+[sign](https://docs.google.com/forms/d/e/1FAIpQLSf7W2cP6_FowvP48C9YNzG4DCciJKLg2S0zYCP31SvDHcCT3w/viewform?usp=sf_link)
+that letter.
+
+-- October 2022
+-- Stanford Latinx Postdoc Association
+
+```{r, echo=FALSE, out.width="90%"}
+knitr::include_graphics("other_figs/slpa_banner_allwhite.png")
+```
+
+## Summary of major findings {#summary}
+
+* We present the results from the [largest ever](#Q1) survey of the Stanford
+Latinx postdocs, sampling more than 40% of the whole Latinx postdoc community.
+
+* The median postdoc had a monthly salary of
+[\$1,701-\$2,500 prior to Stanford](#Q1_Q3),
+and they spent [a median of \$3,000-\$4,000](#Q6_Q7) in their first month for
+housing and around \$2,000 in moving costs other than housing when moving to
+Stanford.
+
+* Latinx postdocs are a diverse population. When compared with non-Latinx
+postdocs, we see that Latinx postdocs
+move to Stanford [from a greater number of distinct regions](#Q1_Q2), and had
+[more variable salaries](#Q1_Q3) prior to Stanford.
+
+* When compared with the most recent SURPAS benefits survey (conducted in
+December 2021-January 2022), we detected increases in expenses related
+to [housing](#Q1_Q16), [car transportation](#Q1_Q12_Q13), and [food](#Q1_Q17).
+These increases track with known global, national, and regional trends
+and are likely driven by inflation, and have outpaced minimum salary increases.
+
+* Latinx postdocs are disproportionately affected in [housing costs](#Q1_Q16),
+[living distance to campus](#Q1_Q19), [car transportation costs](#Q1_Q12_Q13),
+[financial concerns](#Q1_Q20_Q21), and [retirement savings](#Q1_Q22).
+In aggregate, these differences point to a troubling trend.
+
+* Overall, postdocs are dissatisfied with their financial situation, with
+majorities indicating that
+[their salary doesn't cover their living expenses](#Q1_Q20),
+and that this has [negative impacts in multiple aspects](#Q1_Q20_Q21)
+of their lives. We found other factors to have much weaker, if any, effects.
+
+* In their responses to an open ended question, postdoc comments indicated
+[overwhelming frustration and negative emotions](#Q23). Many postdocs
+highlighted financial struggles, and the negative consequences on their mental
+and physical health.
+
+## Acknowledgements
+
+* We thank the 212 anonymous Stanford postdocs who took the survey,
+in particular we are grateful for the 55 anonymous Latinx postdocs who responded.
+
+* The survey questionnaire was designed by Julieta Álvarez Manjarrez with
+input from the SLPA board members Clare Abreu, Sur Herrera Paredes,
+Renato S. Navarro, Fátima Pardo Ávila, Maria-Belen Perez-Ramirez,
+and Vanessa Sanchez.
+
+* We also thank the SURPAS leadership team, and the SURPAS director of
+communications Geetha Saarunya Clarke for their help in disseminating the
+survey.
+
+* This survey report and analysis was prepared by Clare Abreu,
+Sur Herrera Paredes, and Fátima Pardo Ávila, with input from
+Stepfanie Aguillon and Julieta Álvarez Manjarrez.
+
+# Survey demographics
+
+## The largest ever survey of the Stanford Latinx postdocs {#Q1}
+
+```{r, echo=FALSE, out.width="90%"}
+# Plot for this question is very custom.
+question <- "Q1"
+response_file <- file.path(params$input,
+                           "closed_questions",
+                           paste0(question, ".tsv"))
+Dat <- read_tsv(response_file,
+                col_types = 'c')
+dat <- tibble(Survey = c("IDEAL", "IDEAL", "SURPAS", "SLPA", "SLPA"),
+       `Self-identification` = c("Hispanic/Latino", "Other","Unknown", "Latinx", "Other"),
+        n = c(47, 395+15+5+28+5+29+313, 316, sum(Dat[,1] == "Yes"), sum(Dat[,1] == "No")),
+       Latinx = c("Latinx/Hispanic postdocs", "Other postdocs", "Other postdocs", "Latinx/Hispanic postdocs", "Other postdocs"))
+
+# Make plot
+p1 <- dat %>%
+  ggplot(aes(x = Survey, y = n)) +
+  facet_wrap(~ Latinx, scale = "free_y") +
+  geom_bar(aes(fill = `Self-identification`),
+           position = "stack", stat = "identity") +
+  scale_fill_brewer(palette = "Paired") +
+  geom_text(aes(label = n, y = n / 2)) +
+  ylab(label = "Number of Stanford postdocs") +
+  basic_theme +
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 16))
+p1
+filename <- file.path(params$outdir, paste0(question, ".png"))
+ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+filename <- file.path(params$outdir, paste0(question, ".svg"))
+ggsave(filename, p1, width = 6, height = 4)
+```
+
+
+* A total of `r sum(dat$n[ dat$Survey == "SLPA"])` Stanford postdocs answered
+the survey, with [`r sum(dat$n[ dat$Survey == "SLPA" & dat$Latinx == "Latinx/Hispanic postdocs"])`/`r sum(dat$n[ dat$Survey == "SLPA"])`
+(`r round(100 * sum(dat$n[ dat$Survey == "SLPA" & dat$Latinx == "Latinx/Hispanic postdocs"]) / sum(dat$n[ dat$Survey == "SLPA"]),1)`%)
+self-identifying as "Latinx"]{.ul}.
+
+* The [2021 IDEAL Survey](https://idealdeisurvey.stanford.edu/),
+which is the largest survey of the overall Stanford
+postdoc population, reported that [`r sum(dat$n[ dat$Survey == "IDEAL" & dat$Latinx == "Latinx/Hispanic postdocs"])`
+/`r sum(dat$n[ dat$Survey == "IDEAL"])` (`r round(100* sum(dat$n[ dat$Survey == "IDEAL" & dat$Latinx == "Latinx/Hispanic postdocs"]) / sum(dat$n[ dat$Survey == "IDEAL"]) ,1)`%) of postdoc respondents self-identified
+with the related label "Hispanic/Latino"]{.ul}.
+
+* In the more recent SURPAS benefits survey (December 2021 to January 2022)
+`r sum(dat$n[ dat$Survey == "SURPAS"])` postdoc respondents but no ethnic/racial
+demographics were reported.
+
+* To the best of our knowledge, this is the largest survey ever reported
+where the responses of the Latinx postdocs can be studied as a group. If the
+proportion of Hispanic/Latino postdocs from the IDEAL survey is accurate, then
+**this survey sampled 41% of the Latinx postdoc population**.
+
+## Most Stanford postdocs started within the last 3 years
+
+```{r, echo=FALSE,out.width="45%",fig.show='hold'}
+knitr::include_graphics("other_figs/surpas_years_as_postdoc.jpeg")
+questions <- c("Q1","Q11")
+
+Dat <- read_crosstab(questions = questions, Latinx = "Q1")
+# unique(Dat$Q11)
+answer_levels <- c("2014-2016", "2017", "2018", "2019", "2020", "2021", "2022")
+Dat$Q11 <- factor(Dat$Q11,
+                 levels = answer_levels)
+
+
+p1 <- Dat %>%
+  ggplot(aes(x = Q11)) +
+  geom_bar(position = "stack") +
+  # scale_fill_manual(values = cost_palette(6)) +
+  facet_wrap(~Q1, ncol = 1, scales = "free_y") +
+  ggtitle(label = Questions[11]) +
+  ylab("Numer of Stanford postdocs") +
+  basic_theme
+p1
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".png"))
+ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".svg"))
+ggsave(filename, p1, width = 6, height = 4)
+```
+
+* The majority of the survey respondents (`r round(100*sum(Dat$Q11 %in% c("2022", "2021", "2020")) / sum(!is.na(Dat$Q11)), 1)`%)
+started their postdoc in the last three calendar years (i.e. since 2020).
+
+* The number above is almost identical to the `r round(100 * (144+54+48) / (144+54+48+59+10),1)`% postdocs in the first 3 years of their appointment from the latest SURPAS survey (SURPAS 2021/22 benefits survey).
+
+* We observe a lower than expected number of postdocs who started in
+the year 2020, likely related to the COVID-19 pandemic.
+
+* There is little difference between Latinx and non-Latinx postdocs
+on this characteristic.
+
+# Moving costs {#moving}
+
+## The median postdoc spends \$3,000-\$4,000 USD in their first month for moving expenses {#Q6_Q7}
+
+```{r, echo=FALSE, out.width="90%", message=FALSE}
+questions <- c("Q1", "Q6", "Q7")
+
+Dat <- read_crosstab(questions = questions, Latinx = "Q1")
+answer_levels <- c("$1000-$2000",
+                   "$2001-$3000",
+                   "$3001-$4000",
+                   "$4001-$5000",
+                   "$5000-$6000",
+                   "more than $6000")
+Dat$Q6 <- factor(Dat$Q6,
+                 levels = answer_levels)
+answer_levels <- c("less than $1000",
+                   "$1001-$1500",
+                   "$1501-$2000",
+                   "$2001-$2500",
+                   "$2501-$3000",
+                   "more than $3000")
+Dat$Q7 <- factor(Dat$Q7,
+                 levels = answer_levels)
+
+
+p1 <- Dat %>%
+  ggplot(aes(x = Q1)) +
+  geom_bar(aes(fill = Q6),  position = "fill", col = "black") +
+  scale_fill_manual(values = cost_palette(6)) +
+  ggtitle(label = "How much was your first month of rent, deposit, etc,\nwhen you moved to CA to work at Stanford?") +
+  scale_y_continuous(name = "Proportion of Stanford postdocs",
+                     labels = scales::percent) +
+  coord_flip() +
+  basic_theme_flipped
+# p1
+
+p2 <- Dat %>%
+  ggplot(aes(x = Q1)) +
+  geom_bar(aes(fill = Q7),  position = "fill", col = "black") +
+  scale_fill_manual(values = cost_palette(6)) +
+  ggtitle(label = "How much did you pay for your moving expenses,\nwithout housing?") +
+  scale_y_continuous(name = "Proportion of Stanford postdocs",
+                     labels = scales::percent) +
+  coord_flip() +
+  basic_theme_flipped
+# p2
+
+pp <- cowplot::plot_grid(p1,
+                   p2,
+                   nrow = 2)
+pp
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".png"))
+ggsave(filename, pp, width = 6, height = 4, dpi = 150)
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".svg"))
+ggsave(filename, pp, width = 6, height = 4)
+
+
+```
+
+* The median postdoc spends `r levels(Dat$Q6)[median(as.numeric(Dat$Q6))]` in
+their first month rent and deposit when moving to Stanford. The median is the
+same for Latinx and non-Latinx postdocs, but Latinx postdocs are more likely
+to be in the top two spending brackets.
+
+* For moving expenses other than housing the median Latinx postdoc spends
+`r levels(Dat$Q7)[median(as.numeric(Dat$Q7[Dat$Q1 == "Latinx"]))]`,
+versus the median non-Latinx postdoc who spends 
+`r levels(Dat$Q7)[median(as.numeric(Dat$Q7[Dat$Q1 == "Other"]))]`.
+However, Latinx postdocs are also more likely to spend less than \$1,500 in this
+categeory.
+
+## Latinx postdocs disproportionatelly move from Latin America or California, USA {#Q1_Q2}
+
+```{r, echo = FALSE, out.width="90%"}
+questions <- c("Q1","Q2")
+Dat <- read_crosstab(questions = questions, Latinx = "Q1")
+
+answer_levels <- c("California",
+                    "other USA state",
+                    "Canada",
+                    "Europe",
+                    "Latin America",
+                    "Asia",
+                    "Other")
+Dat$Q2 <- factor(Dat$Q2,
+                 levels = answer_levels)
+
+p1 <- Dat %>%
+  ggplot(aes(x = Q1)) +
+  geom_bar(aes(fill = Q2),  position = "fill") +
+  scale_fill_brewer(palette = "Dark2") +
+  ggtitle(label = Questions["Q2"]) +
+  scale_y_continuous(name = "Proportion of Stanford postdocs",
+                     labels = scales::percent) +
+  coord_flip() +
+  basic_theme_flipped
+p1
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".png"))
+ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".svg"))
+ggsave(filename, p1, width = 6, height = 4)
+
+```
+
+* At least one Latinx postdoc was living in each of the regions surveyed
+prior to moving to Stanford.
+
+* In contrast no non-Latinx postdoc moved from Latin America.
+
+## Rent + utilities increase when postdocs move to Stanford {#Q1_Q5_Q16}
+
+```{r  echo=FALSE, out.width="90%", fig.show='hold'}
+questions <- c("Q1","Q5", "Q16")
+
+# Order questions numerically & create file name
+Dat <- read_crosstab(questions = questions, Latinx = "Q1")
+Dat <- Dat %>%
+  pivot_longer(-Q1, values_to = "Cost", names_to = "When") %>%
+  mutate(When = ifelse(When == "Q5", "Before Stanford", "At Stanford")) %>%
+  mutate(When = factor(When, c("Before Stanford", "At Stanford")))
+# unique(Dat$Cost)
+answer_levels <- c("Did not pay rent",
+                              "less than $100",
+                              "$101-$500",
+                              "$501-$1000",
+                              "$1001-$1500",
+                              "$1001-$2000",
+                              "$1501-$2000",
+                              "$2001-$2500",
+                              "more than $2000",
+                              "$2500-$3000",
+                              "more than $3000")
+Dat$Cost <- factor(Dat$Cost,
+                   levels = answer_levels)
+
+# p1 <- Dat %>%
+#   ggplot(aes(x = Cost)) +
+#   geom_bar(aes(fill = Cost), col = "black",position = "stack") +
+#   scale_fill_manual(values = cost_palette(11)) +
+#   facet_grid(Q1 ~ When, scales = "free") +
+#   ggtitle(label = "The cost of your rent & utilities") +
+#   ylab("Numer of Stanford postdocs") +
+#   theme_classic() +
+#   theme(legend.title = element_blank(),
+#         legend.position = "none",
+#         axis.text.x = element_text(angle = 90)) 
+# p1
+# ggsave("rent_utilities_v1.png", p1, width = 6, height = 4)
+
+
+# Alternative plot
+cost_ranges <- tibble(Cost = levels(Dat$Cost),
+                      start = c(0, 1, 101, 501, 1001, 1001, 1501,2001,2001, 2500, 3001),
+                      end = c(1, 99, 500, 1000, 1500, 2000, 2000, 2500, 4000, 3000, 4000))
+
+# Get medians
+meds <- Dat %>%
+  group_by(Q1, When) %>%
+  summarise(Cost = levels(Cost)[median(as.numeric(Cost))], .groups = 'drop') %>%
+  left_join(cost_ranges, by = "Cost")
+
+p1 <- Dat %>%
+  group_by(Q1, When, Cost) %>%
+  summarise(n_postdocs = n(),
+            .groups = 'drop') %>%
+  left_join(cost_ranges, by = "Cost") %>%
+  ggplot() +
+  facet_grid(When ~ Q1, scales= "free_y") +
+
+  geom_rect(data = meds,
+            aes(linetype = "Median postdoc",
+                xmin = start,
+                xmax = end),
+            ymin = -Inf,
+            ymax = Inf,
+            fill = "pink") +
+  
+  geom_rect(aes(xmin = start, xmax = end,
+                ymin = 0 ,
+                ymax = n_postdocs,
+                fill = When),
+            col = "black", alpha = 0.6) +
+  scale_fill_manual(values = c("#53565A", "#8C1515")) +
+  
+  
+  
+  ggtitle(label = "The cost of your rent & utilities") +
+  scale_x_continuous(breaks = c(0, 500, 1000, 1500, 2000, 2500, 3000, 4000),
+                     labels = c("$0","$500", "$1,000","$1,500", "$2,000", "$2,500","$3,000", "$4,000+")) +
+  ylab("Number of Stanford postdocs") +
+  basic_theme +
+  theme(axis.text.x = element_text(angle = 90))
+p1
+# ggsave("rent_utilities_v2.png", p1, width = 6, height = 4)
+
+
+# p1 <- Dat %>%
+#   group_by(When, Cost) %>%
+#   summarise(n_postdocs = n(),
+#             .groups = 'drop') %>%
+#   left_join(cost_ranges, by = "Cost") %>%
+#   ggplot(aes(group = When)) +
+#   geom_rect(aes(xmin = start, xmax = end,
+#                 ymin = 0 ,
+#                 ymax = n_postdocs,
+#                 fill = When),
+#             col = "black", alpha = 0.6) +
+#   scale_fill_manual(values = c("#53565A", "#8C1515")) +
+#   ggtitle(label = "The cost of your monthly rent & utilities") +
+#   scale_x_continuous(breaks = c(0, 500, 1000, 1500, 2000, 2500, 3000, 4000),
+#                      labels = c("$0","$500", "$1,000","$1,500", "$2,000", "$2,500","$3,000", "$4,000+")) +
+#   ylab("Number of Stanford postdocs") +
+#   basic_theme
+# p1
+# ggsave("rent_utilities_v3.png", p1, width = 6, height = 4)
+
+
+
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".png"))
+ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".svg"))
+ggsave(filename, p1, width = 6, height = 4)
+
+
+```
+
+* The median cost of rent + utilities for Latinx postdocs incresases from
+`r levels(Dat$Cost)[median(as.numeric(Dat$Cost[Dat$Q1 == "Latinx" & Dat$When == "Before Stanford"]))]`
+ before Stanford, to 
+`r levels(Dat$Cost)[median(as.numeric(Dat$Cost[Dat$Q1 == "Latinx" & Dat$When == "At Stanford"]))]` 
+ at Stanford. This represents at least a 25% increase.
+ 
+* The median cost of rent + utilities for non-Latinx postdocs incresases from
+`r levels(Dat$Cost)[median(as.numeric(Dat$Cost[Dat$Q1 == "Other" & Dat$When == "Before Stanford"]))]`
+before Stanford, to 
+`r levels(Dat$Cost)[median(as.numeric(Dat$Cost[Dat$Q1 == "Other" & Dat$When == "At Stanford"]))]`
+at Stanford. This represents at least a 100% increase.
+
+* Overall, when moving to Stanford, the cost of rent + utilities decreased for
+1/212 postdoc (`r round(100 * 1/212, 1)`%);
+it remained in overlapping ranges for 36/212 postdocs
+(`r round(100 * 36/212, 1)`%, with 19/36 of these in the top ranges),
+and it increased for 175/212 postdocs (`r round(100 * 175/212, 1)`%).
+
+* *Note*: the surveyed ranges for the rent + utilities cost differ between
+the Before Stanford and At Stanford periods. The widths of
+the bars in the figure reflect the ranges surveyed. The top ranges surveyed
+were the open intervals "more than \$2,000" and "more than \$3,000"
+respectively.
+
+## Prior to Stanford, Latinx postdocs were more likely to have salaries in the most extreme brackets {#Q1_Q3}
+
+```{r, echo = FALSE, out.width="90%"}
+questions <- c("Q1","Q3")
+
+# Order questions numerically & create file name
+Dat <- read_crosstab(questions = questions, Latinx = "Q1")
+answer_levels <- c("$300-$600",
+                            "$601-$1000",
+                            "$1001-$1700",
+                            "$1701-$2500",
+                            "$2500-$3000",
+                            "more than $3000")
+Dat$Q3 <- factor(Dat$Q3,
+                 levels = answer_levels)
+
+p1 <- Dat %>%
+  ggplot(aes(x = Q3)) +
+  geom_bar(aes(fill = Q3), col = "black", position = "stack") +
+  scale_fill_manual(values = cost_palette(6)) +
+  facet_wrap(~Q1, ncol = 1, scales = "free_y") +
+  ggtitle(label = "Your previous monthly salary, after taxes, was about:") +
+  ylab("Numer of Stanford postdocs") +
+  basic_theme +
+  theme(axis.text.x = element_text(angle = 90))
+p1
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".png"))
+ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".svg"))
+ggsave(filename, p1, width = 6, height = 4)
+```
+
+* The median postdoc had a monthly salary of
+`r levels(Dat$Q3)[ median(as.numeric(Dat$Q3)) ]`
+prior to Stanford regardless of whether they identify as Latinx.
+
+* `r round(100 * sum(Dat$Q3 %in% c("$300-$600", "$601-$1000") & Dat$Q1 == "Latinx") / sum(!is.na(Dat$Q3) & Dat$Q1 == "Latinx"),1)`% 
+of Latinx postdocs had a monthly salary of \$1,000 USD
+or less prior to Stanford, compared to
+`r round(100 * sum(Dat$Q3 %in% c("$300-$600", "$601-$1000") & Dat$Q1 == "Other") / sum(!is.na(Dat$Q3) & Dat$Q1 == "Other"),1)`% of non-Latinx postdocs.
+
+
+* `r round(100 * sum(Dat$Q3 %in% c("more than $3000") & Dat$Q1 == "Latinx") / sum(!is.na(Dat$Q3) & Dat$Q1 == "Latinx"),1)`% 
+of Latinx postdocs had a monthly salary of more than \$3,000 USD
+prior to Stanford, compared to
+`r round(100 * sum(Dat$Q3 %in% c("more than $3000") & Dat$Q1 == "Other") / sum(!is.na(Dat$Q3) & Dat$Q1 == "Other"),1)`% of non-Latinx postdocs.
+
+## Latinx postdocs are more likely to request financial help to move to Stanford {#Q1_Q8_Q9}
+
+```{r, echo=FALSE, out.width="45%", fig.show='hold'}
+questions <- c("Q1", "Q8", "Q9")
+
+Dat <- read_crosstab(questions = questions, Latinx = "Q1")
+answer_levels <- c("No", "Yes")
+Dat$Q8 <- factor(Dat$Q8,
+                 levels = answer_levels )
+answer_levels <- c("Bank",
+                   "Family & Friends",
+                   "Other",
+                   "Not applicable")
+Dat$Q9 <- factor(Dat$Q9,
+                 levels = answer_levels )
+
+
+p1 <-Dat %>%
+  ggplot(aes(x = Q1)) +
+  geom_bar(aes(fill = Q8),  position = "fill", col = "black") +
+  scale_fill_manual(values = yes_no_palette[2:3]) +
+  ggtitle(label = Questions[8]) +
+  scale_y_continuous(name = "Proportion of Stanford postdocs",
+                     labels = scales::percent) +
+  basic_theme +
+  theme(legend.position = "right")
+p1
+filename <- file.path(params$outdir,
+                      paste0(paste(questions[c(1,2)], collapse = "_"), ".png"))
+ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+filename <- file.path(params$outdir,
+                      paste0(paste(questions[c(1,2)], collapse = "_"), ".svg"))
+ggsave(filename, p1, width = 6, height = 4)
+
+p1 <- Dat %>%
+  filter(Q9 != "Not applicable") %>%
+  ggplot(aes(x = Q9)) +
+  geom_bar(position = "stack") +
+  ggtitle(label = Questions[9]) +
+  ylab("Numer of Stanford postdocs") +
+  basic_theme
+p1
+filename <- file.path(params$outdir,
+                      paste0(paste(questions[c(1,3)], collapse = "_"), ".png"))
+ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+filename <- file.path(params$outdir,
+                      paste0(paste(questions[c(1,3)], collapse = "_"), ".svg"))
+ggsave(filename, p1, width = 6, height = 4)
+
+```
+
+
+* `r round(100*sum(Dat$Q8 == "Yes" & Dat$Q1 == "Latinx") / sum(!is.na(Dat$Q8) & Dat$Q1 == "Latinx"),1)`%
+of Latinx postdocs requested financial help to move to Stanford, versus
+`r round(100*sum(Dat$Q8 == "Yes" & Dat$Q1 == "Other") / sum(!is.na(Dat$Q8) & Dat$Q1 == "Other"),1)`%
+of non-Latinx postdocs.
+
+* `r round(100 * sum(Dat$Q8 == "Yes" & Dat$Q9 == "Family & Friends") / sum(!is.na(Dat$Q9) & Dat$Q8 == "Yes"), 1)`% of those who requested financial help did so from "Family & Friends".
+
+
+## Postdocs moving from outside of the USA are more likely to request a loan to move {#Q2_Q8}
+
+```{r, echo = FALSE, out.width="90%"}
+questions <- c("Q2", "Q8")
+Dat <- read_crosstab(questions = questions, Latinx = NULL)
+
+answer_levels <- c("California",
+                    "other USA state",
+                    "Canada",
+                    "Europe",
+                    "Latin America",
+                    "Asia",
+                    "Other")
+Dat$Q2 <- factor(Dat$Q2,
+                 levels = answer_levels)
+
+answer_levels <- c("No", "Yes")
+Dat$Q8 <- factor(Dat$Q8,
+                 levels = answer_levels)
+
+
+p1 <- Dat %>%
+  mutate(Q2 = factor(Q2, levels = rev(levels(Q2)))) %>%
+  ggplot(aes(x = Q2)) +
+  geom_bar(aes(fill = Q8),  position = "fill", col = "black")  +
+  scale_fill_manual(values = yes_no_palette[2:3]) +
+  scale_y_continuous(name = "Proportion of Stanford postdocs",
+                     labels = scales::percent) +
+  ggtitle(label = Questions[8]) +
+  coord_flip() +
+  basic_theme_flipped
+p1
+filename <- file.path(params$outdir,
+                      paste0(paste(questions[c(2,3)], collapse = "_"), ".png"))
+ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+filename <- file.path(params$outdir,
+                      paste0(paste(questions[c(2,3)], collapse = "_"), ".svg"))
+ggsave(filename, p1, width = 6, height = 4)
+
+```
+
+* `r round(100 *sum(Dat$Q2 %in% c("California", "other USA state") & Dat$Q8 == "Yes") / sum(Dat$Q2 %in% c("California", "other USA state") & !is.na(Dat$Q8)), 1)`%
+of postdocs moving to Stanford from any USA state requested financial help to move.
+
+* `r round(100 *sum(!(Dat$Q2 %in% c("California", "other USA state")) & Dat$Q8 == "Yes") / sum(!(Dat$Q2 %in% c("California", "other USA state")) & !is.na(Dat$Q8)), 1)`%
+of postdocs moving to Stanford from outside of the USA states requested financial help to move.
+
+* `r round(100 *sum(Dat$Q2 %in% c("Latin America") & Dat$Q8 == "Yes") / sum(Dat$Q2 %in% c("Latin America") & !is.na(Dat$Q8)), 1)`%
+of postdocs moving to Stanford from Latin America requested financial help to move.
+
+## Postdocs moving from Latin America pay less in housing in their first month {#Q2_Q6}
+
+```{r, echo = FALSE, out.width="90%"}
+questions <- c("Q2", "Q6")
+Dat <- read_crosstab(questions = questions, Latinx = NULL)
+
+answer_levels <- c("California",
+                   "other USA state",
+                   "Canada",
+                   "Europe",
+                   "Latin America",
+                   "Asia",
+                   "Other")
+Dat$Q2 <- factor(Dat$Q2,
+                 levels = answer_levels)
+
+answer_levels <- c("$1000-$2000",
+                   "$2001-$3000",
+                   "$3001-$4000",
+                   "$4001-$5000",
+                   "$5000-$6000",
+                   "more than $6000")
+Dat$Q6 <- factor(Dat$Q6,
+                 levels = answer_levels)
+
+
+p1 <- Dat %>%
+  mutate(Q2 = factor(Q2, levels = rev(levels(Q2)))) %>%
+  ggplot(aes(x = Q2)) +
+  geom_bar(aes(fill = Q6),  position = "fill", col = "black")  +
+  scale_fill_manual(values = cost_palette(6)) +
+  scale_y_continuous(name = "Proportion of Stanford postdocs",
+                     labels = scales::percent) +
+  ggtitle(label = "How much was your first month of rent, deposit, etc,\nwhen you moved to CA to work at Stanford?") +
+  coord_flip() +
+  basic_theme_flipped
+p1
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".png"))
+ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".svg"))
+ggsave(filename, p1, width = 6, height = 4)
+
+```
+
+* `r round(100 * sum(Dat$Q2 == "Latin America" & Dat$Q6 %in% c("$1000-$2000", "$2001-$3000")) / sum(Dat$Q2 == "Latin America" & !is.na(Dat$Q6)), 1)`%
+of postdocs who move from Latin America spend \$3,000 or less in their first month of rent, deposit and other moving expenses.
+
+
+* `r round(100 * sum(Dat$Q2 == "Asia" & Dat$Q6 %in% c("$1000-$2000", "$2001-$3000")) / sum(Dat$Q2 == "Asia" & !is.na(Dat$Q6)), 1)`%
+of postdocs who move from Asia spend \$3,000 or less in their first month of rent, deposit and other moving expenses
+
+* `r round(100 * sum(!(Dat$Q2 %in% c("Latin America", "Asia")) & Dat$Q6 %in% c("$1000-$2000", "$2001-$3000")) / sum(!(Dat$Q2 %in% c("Latin America", "Asia")) & !is.na(Dat$Q6)), 1)`%
+of postdocs who move from places other than Latin America or Asia spend \$3,000 or less in their first month of rent, deposit and other moving expenses.
+
+## Most postdocs would request moving financial aid from Stanford if available {#Q1_Q10}
+
+```{r, echo=FALSE,out.width="90%"}
+questions <- c("Q1","Q10")
+
+Dat <- read_crosstab(questions = questions, Latinx = "Q1")
+# unique(Dat$Q10)
+answer_levels <- c("Maybe",
+                   "No",
+                   "Yes")
+Dat$Q10 <- factor(Dat$Q10,
+                 levels = answer_levels)
+
+p1 <- Dat %>%
+  ggplot(aes(x = Q1)) +
+  geom_bar(aes(fill = Q10),  position = "fill", col = "black") +
+  scale_fill_manual(values = yes_no_palette) +
+  ggtitle(label = "If there was an option to request financial assistance from Stanford\nfor moving to the Bay Area, would you have used it?") +
+  scale_y_continuous(name = "Proportion of Stanford postdocs",
+                     labels = scales::percent) +
+  coord_flip() +
+  basic_theme +
+  theme(axis.title.y = element_blank(),
+        axis.title.x = element_text())
+p1
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".png"))
+ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".svg"))
+ggsave(filename, p1, width = 6, height = 4)
+
+```
+
+* If available, `r round(100 * sum(Dat$Q10 == "Yes") / sum(!is.na(Dat$Q10)), 1)`% of postdocs
+would have requested financial help to move to the Bay Area.
+
+# Housing {#housing}
+
+## More postdocs, in particular Latinx postdocs, are paying high rents compared with January 2022 {#Q1_Q16}
+
+```{r, echo=FALSE, out.width="45%", fig.show='hold'}
+# This is a repeat
+
+questions <- c("Q1","Q5", "Q16")
+
+# Order questions numerically & create file name
+Dat <- read_crosstab(questions = questions, Latinx = "Q1")
+Dat <- Dat %>%
+  pivot_longer(-Q1, values_to = "Cost", names_to = "When") %>%
+  mutate(When = ifelse(When == "Q5", "Before Stanford", "At Stanford")) %>%
+  mutate(When = factor(When, c("Before Stanford", "At Stanford")))
+# unique(Dat$Cost)
+Dat$Cost <- factor(Dat$Cost,
+                   levels = c("Did not pay rent",
+                              "less than $100",
+                              "$101-$500",
+                              "$501-$1000",
+                              "$1001-$1500",
+                              "$1001-$2000",
+                              "$1501-$2000",
+                              "$2001-$2500",
+                              "more than $2000",
+                              "$2500-$3000",
+                              "more than $3000"))
+
+p1 <- Dat %>%
+  filter(When == "At Stanford") %>%
+  ggplot(aes(x = Q1)) +
+  geom_bar(aes(fill = Cost),  position = "fill", col = "black") +
+  scale_fill_manual(values = cost_palette(5)) +
+  ggtitle(label = "The cost of your monthly rent & utilities at Stanford") +
+  scale_y_continuous(name = "Proportion of Stanford postdocs",
+                     labels = scales::percent) +
+  guides(fill = guide_legend(nrow = 2)) +
+  basic_theme +
+  theme(legend.text = element_text(size = 20),
+        plot.title = element_text(size = 20))
+p1
+filename <- file.path(params$outdir,
+                      paste0(paste(questions[c(1,3)], collapse = "_"), ".png"))
+ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+filename <- file.path(params$outdir,
+                      paste0(paste(questions[c(1,3)], collapse = "_"), ".svg"))
+ggsave(filename, p1, width = 6, height = 4)
+knitr::include_graphics("other_figs/surpas_rent_cost.jpeg")
+
+
+# Some precalcultations
+n_latinx <- sum(Dat$Q1 == "Latinx" & Dat$When == "At Stanford")
+n_other <- sum(Dat$Q1 == "Other" & Dat$When == "At Stanford")
+n_2kplus_latinx <- sum(Dat$Q1 == "Latinx" & Dat$When == "At Stanford" & Dat$Cost %in% c("$2001-$2500","$2500-$3000","more than $3000"))
+n_2kplus_other <- sum(Dat$Q1 == "Other" & Dat$When == "At Stanford" & Dat$Cost %in% c("$2001-$2500","$2500-$3000","more than $3000"))
+
+```
+
+* `r round(100*n_2kplus_latinx / n_latinx, 1)`% of Latinx postdocs pay
+more than \$2,000 USD monthly for rent and utilities.
+This is compared to `r round(100*n_2kplus_other / n_other,1)`% of non-Latinx
+postdocs in the same bracket.
+
+* In January 2022, `r round(100*(36 + 51 + 62 ) / (36 + 51 + 62 + 88 + 62 + 7 + 9),1)`%
+of all postdocs payed more than \$2,000 of rent per month (SURPAS 2021/22 benefits survey).
+
+## Latinx postdocs are more likely to live far from campus {#Q1_Q19}
+
+```{r, echo = FALSE, out.width="90%"}
+questions <- c("Q1", "Q16", "Q19")
+
+Dat <- read_crosstab(questions = questions, Latinx = "Q1")
+# unique(Dat$Q19)
+answer_levels <- c("$1001-$1500",
+                   "$1501-$2000",
+                   "$2001-$2500",
+                   "$2500-$3000",
+                   "more than $3000")
+Dat$Q16 <- factor(Dat$Q16,
+                 levels = answer_levels)
+
+
+answer_levels <- c("San Francisco",
+                   "Menlo Park",
+                   "Palo Alto - off campus",
+                   "Palo Alto - on campus",
+                   "Mountain View",
+                   "Sunnyvale",
+                   "San Jose",
+                   "Other")
+Dat$Q19 <- factor(Dat$Q19,
+                 levels = answer_levels)
+
+p1 <- Dat %>%
+  ggplot(aes(x = Q1)) +
+  geom_bar(aes(fill = Q19),  position = "fill") +
+  scale_fill_brewer(palette = "Dark2") +
+  ggtitle(label = Questions["Q19"]) +
+  scale_y_continuous(name = "Proportion of Stanford postdocs",
+                     labels = scales::percent) +
+  coord_flip() +
+  basic_theme_flipped
+p1
+filename <- file.path(params$outdir,
+                      paste0(paste(questions[c(1,3)], collapse = "_"), ".png"))
+ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+filename <- file.path(params$outdir,
+                      paste0(paste(questions[c(1,3)], collapse = "_"), ".svg"))
+ggsave(filename, p1, width = 6, height = 4)
+
+```
+
+* Latinx postdocs are [less likely]{.ul} to live in the nearby Palo Alto-Menlo Park area:
+`r round(100 * sum(Dat$Q19 %in% c("Palo Alto - on campus", "Palo Alto - off campus", "Menlo Park") & Dat$Q1 == "Latinx") / sum(!is.na(Dat$Q19) & Dat$Q1 == "Latinx"), 1 )`% for Latinx postdocs vs `r round(100 * sum(Dat$Q19 %in% c("Palo Alto - on campus", "Palo Alto - off campus", "Menlo Park") & Dat$Q1 == "Other") / sum(!is.na(Dat$Q19) & Dat$Q1 == "Other"),1 )` % for non-Latinx postdocs.
+
+ * Latinx postdocs are [more likely]{.ul} to live on the extremes of the Caltrain
+ line (i.e. San Francisco or San Jose): 
+`r round(100 * sum(Dat$Q19 %in% c("San Francisco", "San Jose") & Dat$Q1 == "Latinx") / sum(!is.na(Dat$Q19) & Dat$Q1 == "Latinx"), 1 )`% for Latinx postdocs vs `r round(100 * sum(Dat$Q19 %in% c("San Francisco", "San Jose") & Dat$Q1 == "Other") / sum(!is.na(Dat$Q19) & Dat$Q1 == "Other"),1 )` % for non-Latinx postdocs.
+
+* `r round(100 *sum(Dat$Q19 == "Palo Alto - on campus") / sum(!is.na(Dat$Q19)), 1)`%
+of postdocs live on campus. This is similar to the `r round(100*16/(16 + 272),1)`%
+of postdocs who lived in Stanford-owned housing in January 2022
+(SURPAS 2021/22 benefits survey)
+
+## Cost of rent + utilities distribute similarly across the Bay Area
+
+```{r, echo = FALSE, out.width="90%"}
+questions <- c("Q1", "Q16", "Q19")
+
+Dat <- read_crosstab(questions = questions, Latinx = "Q1")
+# unique(Dat$Q19)
+answer_levels <- c("$1001-$1500",
+                   "$1501-$2000",
+                   "$2001-$2500",
+                   "$2500-$3000",
+                   "more than $3000")
+Dat$Q16 <- factor(Dat$Q16,
+                 levels = answer_levels)
+
+
+answer_levels <- c("San Francisco",
+                   "Menlo Park",
+                   "Palo Alto - off campus",
+                   "Palo Alto - on campus",
+                   "Mountain View",
+                   "Sunnyvale",
+                   "San Jose",
+                   "Other")
+Dat$Q19 <- factor(Dat$Q19,
+                 levels = answer_levels)
+
+p1 <- Dat %>%
+  mutate(Q19 = factor(Q19, levels = rev(levels(Q19)))) %>%
+  ggplot(aes(x = Q19)) +
+  geom_bar(aes(fill = Q16),  position = "fill", col = "black")  +
+  scale_fill_manual(values = cost_palette(5)) +
+  scale_y_continuous(name = "Proportion of Stanford postdocs",
+                     labels = scales::percent) +
+  ggtitle(label = "Monthly rent + utilities depending on where postdocs live") +
+  coord_flip() +
+  basic_theme_flipped
+p1
+filename <- file.path(params$outdir,
+                      paste0(paste(questions[c(2,3)], collapse = "_"), ".png"))
+ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+filename <- file.path(params$outdir,
+                      paste0(paste(questions[c(2,3)], collapse = "_"), ".svg"))
+ggsave(filename, p1, width = 6, height = 4)
+```
+
+* Except for San Jose, we observed postdocs in all the expenses brackets in 
+all regions surveyed.
+
+# Transportation {#transportation}
+
+## Most postdocs own a car {#Q1_Q12}
+
+```{r, echo=FALSE, out.width="90%"}
+questions <- c("Q1","Q12","Q13")
+
+Dat <- read_crosstab(questions = questions, Latinx = "Q1")
+# unique(Dat$Q13)
+answer_levels <- c("No", "Yes")
+Dat$Q12 <- factor(Dat$Q12,
+                 levels = answer_levels)
+answer_levels <- c("less than $100",
+                   "$101-$200",
+                   "$201-$300",
+                   "$301-$500",
+                   "more than $500")
+Dat$Q13 <- factor(Dat$Q13,
+                 levels = answer_levels)
+
+p1 <- Dat %>%
+  ggplot(aes(x = Q1)) +
+  geom_bar(aes(fill = Q12),  position = "fill", col = "black") +
+  scale_fill_manual(values = yes_no_palette[2:3]) +
+  ggtitle(label = Questions[12]) +
+  scale_y_continuous(name = "Proportion of Stanford postdocs",
+                     labels = scales::percent) +
+  coord_flip() +
+  basic_theme_flipped
+p1
+filename <- file.path(params$outdir,
+                      paste0(paste(questions[1:2], collapse = "_"), ".png"))
+ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+filename <- file.path(params$outdir,
+                      paste0(paste(questions[1:2], collapse = "_"), ".svg"))
+ggsave(filename, p1, width = 6, height = 4)
+```
+
+* `r round(100 * sum(Dat$Q12 == "Yes") / sum(!is.na(Dat$Q12)), 1)`% of postdocs
+own a car, regardless of whether they self-identify as Latinx.
+
+## Owning a car increases transportation expenses, more so for Latinx postdocs {#Q1_Q12_Q13}
+
+```{r, echo=FALSE, out.width="45%", fig.show='hold'}
+questions <- c("Q1","Q12","Q13")
+
+Dat <- read_crosstab(questions = questions, Latinx = "Q1")
+# unique(Dat$Q13)
+answer_levels <- c("No", "Yes")
+Dat$Q12 <- factor(Dat$Q12,
+                 levels = answer_levels)
+answer_levels <- c("less than $100",
+                   "$101-$200",
+                   "$201-$300",
+                   "$301-$500",
+                   "more than $500")
+Dat$Q13 <- factor(Dat$Q13,
+                 levels = answer_levels)
+
+p1 <- Dat %>%
+  mutate(Q12 = ifelse(Q12 == "Yes", "Owns a car", "Doesn't own a car")) %>%
+  ggplot(aes(x = Q13)) +
+  geom_bar(aes(fill = Q13), col = "black", position = "stack") +
+  scale_fill_manual(values = cost_palette(5)) +
+  # facet_wrap(~Q12, ncol = 1, scales = "free_y") +
+  facet_grid(Q1~Q12, scales = "free_y") +
+  ggtitle(label = "How much do you pay for transport in a month?") +
+  ylab("Numer of Stanford postdocs") +
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) +
+  guides(fill = guide_legend(nrow = 2)) +
+  basic_theme +
+  theme(axis.text.x = element_blank(),
+        plot.title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        strip.text = element_text(size = 20))
+p1
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".png"))
+ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".svg"))
+ggsave(filename, p1, width = 6, height = 4)
+
+knitr::include_graphics("other_figs/surpas_transportation_cost.jpeg")
+
+
+n_latinx_car_expensive <- sum(Dat$Q13[Dat$Q1 == "Latinx" & Dat$Q12 == "Yes"] %in% c("$301-$500", "more than $500"))
+n_latinx_car <- length(Dat$Q13[Dat$Q1 == "Latinx" & Dat$Q12 == "Yes"])
+
+n_other_car_expensive <- sum(Dat$Q13[Dat$Q1 == "Other" & Dat$Q12 == "Yes"] %in% c("$301-$500", "more than $500"))
+n_other_car <- length(Dat$Q13[Dat$Q1 == "Other" & Dat$Q12 == "Yes"])
+
+```
+
+* The median postdoc [without a car]{.ul} spends
+`r levels(Dat$Q13)[ median(as.numeric(Dat$Q13[Dat$Q12 == "No"])) ]`
+per month on transportation, while the median postdoc [with a car]{.ul} spends
+`r levels(Dat$Q13)[ median(as.numeric(Dat$Q13[Dat$Q12 == "Yes"])) ]`.
+
+* For postdocs who don't own a car, there is little difference in transportation
+expenses between Latinx & non-Latinx postdocs.
+
+* Among postdocs who own a car,
+[`r round(100 * n_latinx_car_expensive / n_latinx_car,1)`% of Latinx postdocs]{.ul}
+spend more than $300 per month in transport. In contrast,
+[`r round(100 * n_other_car_expensive / n_other_car,1)`% of non-Latinx
+postdocs]{.ul} spend the same amount.
+
+* Overall, the median Stanford postdoc spends
+`r levels(Dat$Q13)[ median(as.numeric(Dat$Q13)) ]` on transportation per month.
+In contrast, the median postdoc spent \$100-\$159 per month on January 2022,
+representing [at least a 25% increase]{.ul} (SURPAS
+2021/22 benefits survey).
+
+* *Note*: the full text of the question was `r Questions[12]`
+
+## Postdocs moving from the USA states are more likely to own a car {#Q2_Q12}
+
+```{r, out.width="90%", echo=FALSE}
+questions <- c("Q1","Q2","Q12")
+
+Dat <- read_crosstab(questions = questions, Latinx = "Q1")
+answer_levels <- c("California",
+                    "other USA state",
+                    "Canada",
+                    "Europe",
+                    "Latin America",
+                    "Asia",
+                    "Other")
+Dat$Q2 <- factor(Dat$Q2,
+                 levels = answer_levels)
+answer_levels <- c("No", "Yes")
+Dat$Q12 <- factor(Dat$Q12,
+                 levels = answer_levels)
+
+p1 <- Dat %>%
+  mutate(Q2 = factor(Q2, levels = rev(levels(Q2)))) %>%
+  ggplot(aes(x = Q2)) +
+  geom_bar(aes(fill = Q12),  position = "fill", col = "black")  +
+  scale_fill_manual(values = yes_no_palette[2:3]) +
+  scale_y_continuous(name = "Proportion of Stanford postdocs",
+                     labels = scales::percent) +
+  xlab(label = Questions[2]) +
+  ggtitle(label = Questions[12]) +
+  coord_flip() +
+  basic_theme_flipped +
+  theme(axis.title.y = element_text(angle = 90))
+p1
+filename <- file.path(params$outdir,
+                      paste0(paste(questions[c(2,3)], collapse = "_"), ".png"))
+ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+filename <- file.path(params$outdir,
+                      paste0(paste(questions[c(2,3)], collapse = "_"), ".svg"))
+ggsave(filename, p1, width = 6, height = 4)
+
+```
+
+* `r round(100 *sum(Dat$Q2 %in% c("California", "other USA state") & Dat$Q12 == "Yes") / sum(Dat$Q2 %in% c("California", "other USA state") & !is.na(Dat$Q12)), 1)`%
+of postdocs moving to Stanford from any USA state own a car.
+
+* `r round(100 *sum(!(Dat$Q2 %in% c("California", "other USA state")) & Dat$Q12 == "Yes") / sum(!(Dat$Q2 %in% c("California", "other USA state")) & !is.na(Dat$Q12)), 1)`%
+of postdocs moving to Stanford from outside of the USA states own a car.
+
+* `r round(100 *sum(Dat$Q2 %in% c("Latin America") & Dat$Q12 == "Yes") / sum(Dat$Q2 %in% c("Latin America") & !is.na(Dat$Q12)), 1)`%
+of postdocs moving to Stanford from Latin America own a car.
+
+# Food {#food}
+
+## 29.5% of postdocs spend more than \$1,200 per month on food {#Q1_Q17}
+
+```{r, out.width="45%", echo=FALSE, fig.show='hold'}
+questions <- c("Q1","Q17")
+
+Dat <- read_crosstab(questions = questions, Latinx = "Q1")
+# unique(Dat$Q17)
+answer_levels <- c("less then $100",
+                   "$101-$300",
+                   "$301-$500", 
+                   "$501-$700",
+                   "more than $700")
+Dat$Q17 <- factor(Dat$Q17,
+                 levels = answer_levels)
+
+# Fix typo
+levels(Dat$Q17) <- c("less than $100",
+                   "$101-$300",
+                   "$301-$500", 
+                   "$501-$700",
+                   "more than $700")
+
+p1 <- Dat %>%
+  ggplot(aes(x = Q17)) +
+  geom_bar(aes(fill = Q17), col = "black", position = "stack") +
+  scale_fill_manual(values = cost_palette(6)) +
+  facet_wrap(~Q1, ncol = 1, scales = "free_y") +
+  ggtitle(label = Questions[17]) +
+  ylab("Numer of Stanford postdocs") +
+  guides(fill = guide_legend(nrow = 2)) +
+  basic_theme +
+  theme(legend.text = element_text(size = 20),
+        plot.title = element_text(size = 20),
+        strip.text = element_text(size = 20),
+        axis.text.x = element_blank())
+p1
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".png"))
+ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".svg"))
+ggsave(filename, p1, width = 6, height = 4)
+
+knitr::include_graphics("other_figs/surpas_food_per_month.jpeg")
+```
+
+*  The median postdoc spends `r levels(Dat$Q17)[ median(as.numeric(Dat$Q17)) ]`
+per week on food regardless on whether they identify as Latinx.
+
+* `r round(100 * sum(Dat$Q17 %in% c("$301-$500", "$501-$700", "more than $700")) / sum(!is.na(Dat$Q17)), 1)`% 
+of postdocs spend more than \$300 per week in food, or approximately more
+than \$1,200 per month. In January 2022 only
+`r round(100*(28) / (52+28 + 49+117+67), 1)`%
+of postdocs spent more than \$1,100 in the same category,
+[at least a 3-fold increase]{.ul} in this proportion
+(SURPAS 2021/22 benefits survey).
+
+# Dependents & partners {#dependents_partners}
+
+## Latinx postdocs are more likely to have partners
+
+```{r, echo = FALSE, out.width="90%"}
+questions <- c("Q1","Q4")
+
+# Order questions numerically & create file name
+Dat <- read_crosstab(questions = questions, Latinx = "Q1")
+answer_levels <- c("Not applicable",
+                            "No",
+                            "Yes")
+Dat$Q4 <- factor(Dat$Q4,
+                 levels = answer_levels)
+
+
+dat <- Dat %>%
+  group_by(Q1,partner_salary = Q4) %>%
+  summarise(n_postdocs = n(),
+            .groups = 'drop') %>%
+  mutate(When = "Before Stanford")
+
+
+questions <- c("Q1","Q15")
+
+# Order questions numerically & create file name
+Dat <- read_crosstab(questions = questions, Latinx = "Q1")
+answer_levels <- c("Not applicable",
+                            "No",
+                            "Yes")
+Dat$Q15 <- factor(Dat$Q15,
+                 levels = answer_levels)
+
+dat <- Dat %>%
+  group_by(Q1, partner_salary = Q15) %>%
+  summarise(n_postdocs = n(),
+            .groups = 'drop') %>%
+  mutate(When = "At Stanford") %>%
+  bind_rows(dat) %>%
+  mutate(When = factor(When,
+                       levels = c("Before Stanford", "At Stanford")))
+
+p1 <- dat %>%
+  ggplot(aes(x = Q1)) +
+  facet_wrap(~ When, ncol = 2) +
+  geom_bar(aes(fill = partner_salary, y = n_postdocs), stat = "identity",
+           position = "fill", col ="black") +
+  scale_fill_manual(values = yes_no_palette) +
+  ggtitle(label = Questions[4]) +
+  scale_y_continuous(name = "Proportion of Stanford postdocs",
+                     labels = scales::percent) +
+  basic_theme 
+p1
+questions <- c("Q1", "Q4", "Q15")
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".png"))
+ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".svg"))
+ggsave(filename, p1, width = 6, height = 4)
+
+
+perc_latinx_partner_before <- sum(dat$n_postdocs[ dat$Q1 == "Latinx" & dat$partner_salary != "Not applicable" & dat$When == "Before Stanford" ]) / sum(dat$n_postdocs[ dat$Q1 == "Latinx" & dat$When == "Before Stanford" ])
+perc_latinx_partner_salary_before <- sum(dat$n_postdocs[ dat$Q1 == "Latinx" & dat$partner_salary == "Yes" & dat$When == "Before Stanford" ]) / sum(dat$n_postdocs[ dat$Q1 == "Latinx" & dat$partner_salary != "Not applicable" & dat$When == "Before Stanford" ])
+
+perc_other_partner_before <- sum(dat$n_postdocs[ dat$Q1 == "Other" & dat$partner_salary != "Not applicable" & dat$When == "Before Stanford" ]) / sum(dat$n_postdocs[ dat$Q1 == "Other" & dat$When == "Before Stanford" ])
+perc_other_partner_salary_before <- sum(dat$n_postdocs[ dat$Q1 == "Other" & dat$partner_salary == "Yes" & dat$When == "Before Stanford" ]) / sum(dat$n_postdocs[ dat$Q1 == "Other" & dat$partner_salary != "Not applicable" & dat$When == "Before Stanford" ])
+
+perc_latinx_partner_at <- sum(dat$n_postdocs[ dat$Q1 == "Latinx" & dat$partner_salary != "Not applicable" & dat$When == "At Stanford" ]) / sum(dat$n_postdocs[ dat$Q1 == "Latinx" & dat$When == "At Stanford" ])
+perc_latinx_partner_salary_at <- sum(dat$n_postdocs[ dat$Q1 == "Latinx" & dat$partner_salary == "Yes" & dat$When == "At Stanford" ]) / sum(dat$n_postdocs[ dat$Q1 == "Latinx" & dat$partner_salary != "Not applicable" & dat$When == "At Stanford" ])
+
+perc_other_partner_at <- sum(dat$n_postdocs[ dat$Q1 == "Other" & dat$partner_salary != "Not applicable" & dat$When == "At Stanford" ]) / sum(dat$n_postdocs[ dat$Q1 == "Other" & dat$When == "At Stanford" ])
+perc_other_partner_salary_at <- sum(dat$n_postdocs[ dat$Q1 == "Other" & dat$partner_salary == "Yes" & dat$When == "At Stanford" ]) / sum(dat$n_postdocs[ dat$Q1 == "Other" & dat$partner_salary != "Not applicable" & dat$When == "At Stanford" ])
+
+```
+
+* Latinx postdocs are more likely to have had partner (`r round(100*perc_latinx_partner_before, 1)`% vs
+`r round(100*perc_other_partner_before, 1)`% for non-Latinx postdocs) before coming to Stanford.
+
+* More postdocs have partners now when compared to their time before Stanford. Latinx postdocs
+are still more likely to have a partner (`r round(100*perc_latinx_partner_at, 1)`% vs
+`r round(100*perc_other_partner_at, 1)`% for non-Latinx postdocs).
+
+* For Latinx postdocs, [their partners were more likely]{.ul} to have had a
+salary before coming to Stanford
+(`r round(100*perc_latinx_partner_salary_before, 1)`%)
+than now (`r round(100*perc_latinx_partner_salary_at, 1)`%).
+
+* For non-Latinx postdocs, [their partners were less likely]{.ul} to have had
+a salary before coming to Stanford (`r round(100*perc_other_partner_salary_before, 1)`%)
+than now (`r round(100*perc_other_partner_salary_at, 1)`%).
+
+## A quarter of Stanford postdocs have dependents
+
+```{r, echo=FALSE, fig.show='hold',out.width="45%"}
+knitr::include_graphics("other_figs/surpas_dependents_shca.jpeg")
+questions <- c("Q1","Q14")
+
+Dat <- read_crosstab(questions = questions, Latinx = "Q1")
+# unique(Dat$Q14)
+answer_levels <- c("0", "1", "2", "3 or more")
+Dat$Q14 <- factor(Dat$Q14,
+                 levels = answer_levels)
+
+
+p1 <- Dat %>%
+  ggplot(aes(x = Q14)) +
+  geom_bar(position = "stack") +
+  facet_wrap(~Q1, ncol = 1, scales = "free_y") +
+  ggtitle(label = Questions[14]) +
+  ylab("Numer of Stanford postdocs") +
+  basic_theme
+p1
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".png"))
+ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".svg"))
+ggsave(filename, p1, width = 6, height = 4)
+```
+
+* `r round(100 * sum(Dat$Q14 != "0" & Dat$Q1 == "Latinx") / sum(Dat$Q1 == "Latinx"), 1)`%
+of Latinx postdocs have dependents.
+* `r round(100 * sum(Dat$Q14 != "0" & Dat$Q1 == "Other") / sum(Dat$Q1 == "Other"), 1)`%
+of non-Latinx postdocs have dependents.`
+* In january 2022 `r round(100 * (35 + 29 + 13) / (35 + 29 + 13 + 219),1)`% of
+all postdocs had dependents and/or significant others enrolled in the
+Stanford Health Care Alliance plan (SURPAS 2021/22 benefits survey).
+
+# Financials {#financials}
+
+## Postdocs feel that their salary doesn't cover their life expenses {#Q1_Q20}
+
+```{r, echo=FALSE, out.width="90%"}
+questions <- c("Q1", "Q20", "Q21")
+
+Dat <- read_crosstab(questions = questions, Latinx = "Q1")
+# unique(Dat$Q21)
+answer_levels <- c("1", "2", "3", "4", "5")
+Dat$Q20 <- factor(Dat$Q20,
+                 levels = answer_levels)
+
+
+answer_levels <- c("Decline to answer",
+                   "No",
+                   "Yes")
+Dat$Q21 <- factor(Dat$Q21,
+                 levels = answer_levels)
+
+
+p1 <- Dat %>%
+  ggplot(aes(x = Q20)) +
+  geom_bar(position = "stack") +
+  facet_wrap(~Q1, ncol = 1, scales = "free_y") +
+  ggtitle(label = Questions[20]) +
+  ylab("Numer of Stanford postdocs") +
+  scale_x_discrete(labels = c("1\ndisagree", "2", "3", "4", "5\nagree")) +
+  basic_theme
+p1
+filename <- file.path(params$outdir,
+                      paste0(paste(questions[c(1,2)], collapse = "_"), ".png"))
+ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+filename <- file.path(params$outdir,
+                      paste0(paste(questions[c(1,2)], collapse = "_"), ".svg"))
+ggsave(filename, p1, width = 6, height = 4)
+```
+
+* `r round(100 * sum(Dat$Q20 %in% c("1", "2")) / sum(!is.na(Dat$Q20)), 1)`% of
+postdocs do not feel (i.e. responses 1 or 2) that their postdoc salary cover
+their life expenses.
+
+## Financial concerns negatively influence postdocs {#Q1_Q20_Q21}
+
+```{r, echo=FALSE,out.width="90%", fig.show='hold'}
+questions <- c("Q1", "Q20", "Q21")
+
+Dat <- read_crosstab(questions = questions, Latinx = "Q1")
+# unique(Dat$Q21)
+answer_levels <- c("1", "2", "3", "4", "5")
+Dat$Q20 <- factor(Dat$Q20,
+                 levels = answer_levels)
+
+
+answer_levels <- c("Decline to answer",
+                   "No",
+                   "Yes")
+Dat$Q21 <- factor(Dat$Q21,
+                 levels = answer_levels)
+
+# p1 <- Dat %>%
+#   ggplot(aes(x = Q1)) +
+#   geom_bar(aes(fill = Q21),  position = "fill") +
+#   scale_fill_manual(values = yes_no_palette) +
+#   ggtitle(label = "Do you feel that your financials here at Stanford have affected negatively\nyour wellbeing, progress, comfort, mental health, etc.?") +
+#   scale_y_continuous(name = "Proportion of Stanford postdocs",
+#                      labels = scales::percent) +
+#   basic_theme +
+#   theme(legend.position = "none")
+# p1
+# filename <- file.path(params$outdir,
+#                       paste0(paste(questions[c(1,3)], collapse = "_"), ".png"))
+# ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+# filename <- file.path(params$outdir,
+#                       paste0(paste(questions[c(1,3)], collapse = "_"), ".svg"))
+# ggsave(filename, p1, width = 6, height = 4)
+
+
+p1 <- Dat %>%
+  ggplot(aes(x = Q20)) +
+  facet_wrap(~Q1, ncol = 1) +
+  geom_bar(aes(fill = Q21),  position = "fill", col = "black")  +
+  scale_fill_manual(values = yes_no_palette,
+                    name = "Have your financials\nhere at Stanford\nnegatively affected your\nwellbeing, progress, comfort,\nmental health, etc.?") +
+  scale_y_continuous(name = "Proportion of Stanford postdocs",
+                     labels = scales::percent) +
+  scale_x_discrete(labels = c("1\ndisagree", "2", "3", "4", "5\nagree"),
+                   name = "Do you feel that your postdoc\nsalary is enough to cover your life expenses?") +
+  basic_theme +
+  theme(legend.position = "right",
+        legend.title = element_text(),
+        axis.title.x = element_text())
+p1
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".png"))
+ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".svg"))
+ggsave(filename, p1, width = 6, height = 4)
+```
+
+* `r round(100*sum(Dat$Q21 == "Yes" & Dat$Q1 == "Latinx") / sum(!is.na(Dat$Q21) & Dat$Q1 == "Latinx"), 1)`% of Latinx
+postdocs and `r round(100*sum(Dat$Q21 == "Yes" & Dat$Q1 == "Other") / sum(!is.na(Dat$Q21) & Dat$Q1 == "Other"), 1)`% of
+non-Latinx postdocs feel negatively affected by their financials at Stanford.
+
+* There is a direct relationship between postdocs feeling that their salary doesn't cover
+their expenses, and feeling that their financial situation negatively affects them.
+
+* *Note*: the full text of the question was "`r Questions[21]`".
+
+## One quarter of postdocs are saving money for retirement {#Q1_Q22}
+
+```{r, echo=FALSE, out.width="95%"}
+questions <- c("Q1","Q22")
+
+Dat <- read_crosstab(questions = questions, Latinx = "Q1")
+# unique(Dat$Q22)
+answer_levels <- c("No", "Yes")
+Dat$Q22 <- factor(Dat$Q22,
+                 levels = answer_levels)
+
+
+p1 <- Dat %>%
+  ggplot(aes(x = Q1)) +
+  geom_bar(aes(fill = Q22),  position = "fill", col = "black") +
+  scale_fill_manual(values = yes_no_palette[2:3]) +
+  ggtitle(label = "Are you setting any of your postdoc salary aside\nin a retirement savings account?") +
+  scale_y_continuous(name = "Proportion of Stanford postdocs",
+                     labels = scales::percent) +
+  coord_flip() +
+  basic_theme_flipped
+p1
+filename <- file.path(params$outdir,
+                      paste0(paste(questions[1:2], collapse = "_"), ".png"))
+ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+filename <- file.path(params$outdir,
+                      paste0(paste(questions[1:2], collapse = "_"), ".svg"))
+ggsave(filename, p1, width = 6, height = 4)
+```
+
+* `r round(100 * sum(Dat$Q22 == "Yes" & Dat$Q1 == "Latinx") / sum(!is.na(Dat$Q22)  & Dat$Q1 == "Latinx"),1)`%
+of Latinx postdocs are setting up some money aside for retirement.
+
+* `r round(100 * sum(Dat$Q22 == "Yes" & Dat$Q1 == "Other") / sum(!is.na(Dat$Q22) & Dat$Q1 == "Other"),1)`%
+of non-Latinx postdocs are setting up some money aside for retirement.
+
+## Moving costs, other than housing, negatively impact postdocs {#Q7_Q21}
+
+```{r, echo=FALSE, out.width="90%", fig.show='hold'}
+questions <- c("Q7","Q21")
+
+Dat <- read_crosstab(questions = questions, Latinx = NULL)
+answer_levels <- c("less than $1000",
+                   "$1001-$1500",
+                   "$1501-$2000",
+                   "$2001-$2500",
+                   "$2501-$3000",
+                   "more than $3000")
+Dat$Q7 <- factor(Dat$Q7,
+                 levels = answer_levels)
+answer_levels <- c("Decline to answer",
+                   "No",
+                   "Yes")
+Dat$Q21 <- factor(Dat$Q21,
+                 levels = answer_levels)
+
+
+p1 <- Dat %>%
+  ggplot(aes(x = Q7)) +
+  # facet_wrap(~Q1, ncol = 1) +
+  geom_bar(aes(fill = Q21),  position = "fill", col = "black")  +
+  scale_fill_manual(values = yes_no_palette,
+                    name = "Have your financials\nhere at Stanford\nnegatively affected your\nwellbeing, progress, comfort,\nmental health, etc.?") +
+  scale_y_continuous(name = "Proportion of Stanford postdocs",
+                     labels = scales::percent) +
+  xlab(label = "How much did you pay for your moving expenses,\nwithout housing?") +
+  basic_theme +
+  theme(legend.position = "right",
+        legend.title = element_text(),
+        axis.text.x = element_text(angle = 90),
+        axis.title.x = element_text())
+p1
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".png"))
+ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+filename <- file.path(params$outdir,
+                      paste0(paste(questions, collapse = "_"), ".svg"))
+ggsave(filename, p1, width = 6, height = 4)
+
+
+```
+
+* `r round(100 * sum(Dat$Q7 %in% c("$2501-$3000", "more than $3,000") & Dat$Q21 == "Yes") / sum(Dat$Q7 %in% c("$2501-$3000", "more than $3,000") & !is.na(Dat$Q21)),1)`%
+of postdocs with moving expenses (other than housing) greater than \$2,500 feel
+negatively affected by their finances at Stanford.
+
+* `r round(100 * sum(!(Dat$Q7 %in% c("$2501-$3000", "more than $3,000")) & Dat$Q21 == "Yes") / sum(!(Dat$Q7 %in% c("$2501-$3000", "more than $3,000")) & !is.na(Dat$Q21)),1)`%
+of postdocs with moving expenses (other than housing) of \$2,500 or less, feel
+negatively affected by their finances at Stanford.
+
+## Other factors have little influence on the negative effect of postdoc finances {#Q21_other}
+
+```{r, echo=FALSE}
+# questions <- c("Q6","Q21")
+# 
+# Dat <- read_crosstab(questions = questions, Latinx = NULL)
+# answer_levels <- c("$1000-$2000",
+#                    "$2001-$3000",
+#                    "$3001-$4000",
+#                    "$4001-$5000",
+#                    "$5000-$6000",
+#                    "more than $6000")
+# Dat$Q6 <- factor(Dat$Q6,
+#                  levels = answer_levels)
+# answer_levels <- c("Decline to answer",
+#                    "No",
+#                    "Yes")
+# Dat$Q21 <- factor(Dat$Q21,
+#                  levels = answer_levels)
+# 
+# 
+# p1 <- Dat %>%
+#   ggplot(aes(x = Q6)) +
+#   # facet_wrap(~Q1, ncol = 1) +
+#   geom_bar(aes(fill = Q21),  position = "fill", col = "black")  +
+#   scale_fill_manual(values = yes_no_palette,
+#                     name = "Have your financials\nhere at Stanford\nnegatively affected your\nwellbeing, progress, comfort,\nmental health, etc.?") +
+#   scale_y_continuous(name = "Proportion of Stanford postdocs",
+#                      labels = scales::percent) +
+#   xlab(label = "How much was your first month of rent, deposit, etc,\nwhen you moved to CA to work at Stanford?") +
+#   basic_theme +
+#   theme(legend.position = "right",
+#         legend.title = element_text(),
+#         axis.text.x = element_text(angle = 90),
+#         axis.title.x = element_text())
+# p1
+# filename <- file.path(params$outdir,
+#                       paste0(paste(questions, collapse = "_"), ".png"))
+# ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+# filename <- file.path(params$outdir,
+#                       paste0(paste(questions, collapse = "_"), ".svg"))
+# ggsave(filename, p1, width = 6, height = 4)
+
+
+# questions <- c("Q11","Q21")
+# 
+# Dat <- read_crosstab(questions = questions, Latinx = NULL)
+# answer_levels <- c("2014-2016", "2017", "2018", "2019", "2020", "2021", "2022")
+# Dat$Q11 <- factor(Dat$Q11,
+#                  levels = answer_levels)
+# answer_levels <- c("Decline to answer",
+#                    "No",
+#                    "Yes")
+# Dat$Q21 <- factor(Dat$Q21,
+#                  levels = answer_levels)
+# 
+# 
+# p1 <- Dat %>%
+#   ggplot(aes(x = Q11)) +
+#   geom_bar(aes(fill = Q21),  position = "fill", col = "black")  +
+#   scale_fill_manual(values = yes_no_palette,
+#                     name = "Have your financials\nhere at Stanford\nnegatively affected your\nwellbeing, progress, comfort,\nmental health, etc.?") +
+#   scale_y_continuous(name = "Proportion of Stanford postdocs",
+#                      labels = scales::percent) +
+#   xlab(label = Questions[11]) +
+#   basic_theme +
+#   theme(legend.position = "right",
+#         legend.title = element_text(),
+#         axis.text.x = element_text(angle = 90),
+#         axis.title.x = element_text())
+# p1
+# filename <- file.path(params$outdir,
+#                       paste0(paste(questions, collapse = "_"), ".png"))
+# ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+# filename <- file.path(params$outdir,
+#                       paste0(paste(questions, collapse = "_"), ".svg"))
+# ggsave(filename, p1, width = 6, height = 4)
+
+questions <- c("Q1","Q12","Q21")
+
+Dat <- read_crosstab(questions = questions, Latinx = "Q1")
+answer_levels <- c("No", "Yes")
+Dat$Q12 <- factor(Dat$Q12,
+                 levels = answer_levels)
+answer_levels <- c("Decline to answer",
+                   "No",
+                   "Yes")
+Dat$Q21 <- factor(Dat$Q21,
+                 levels = answer_levels)
+# p1 <- Dat %>%
+#   mutate(Q12 = ifelse(Q12 == "Yes", "Owns a car", "Doesn't own a car")) %>%
+#   ggplot(aes(x = Q12)) +
+#   # facet_wrap(~Q12, ncol = 2) +
+#   geom_bar(aes(fill = Q21), col = "black", position = "fill") +
+#   scale_fill_manual(values = yes_no_palette,
+#                     name = "Have your financials\nhere at Stanford\nnegatively affected your\nwellbeing, progress, comfort,\nmental health, etc.?") +
+#   scale_y_continuous(name = "Proportion of Stanford postdocs",
+#                      labels = scales::percent) +
+#   coord_flip() +
+#   basic_theme_flipped +
+#   theme(legend.position = "right",
+#         legend.title = element_text())
+#   
+# p1
+# 
+# filename <- file.path(params$outdir,
+#                       paste0(paste(questions[c(2,3)], collapse = "_"), ".png"))
+# ggsave(filename, p1, width = 6, height = 4, dpi = 150)
+# filename <- file.path(params$outdir,
+#                       paste0(paste(questions[c(2,3)], collapse = "_"), ".svg"))
+# ggsave(filename, p1, width = 6, height = 4)
+
+```
+
+* There is no relationship between first month expenses of a postdoc, and the
+negative impact that they feel from their finances.
+
+* There is no relationship between the year a Stanford postdoc started their
+appointment, and the negative impact that they feel from their finances.
+
+* Owning a car is a associated with a small increase
+(from `r round(100 * sum(Dat$Q12 == "Yes" & Dat$Q21 == "Yes") / sum(Dat$Q12 == "Yes" & !is.na(Dat$Q21)),1)`%
+to `r round(100 * sum(Dat$Q12 == "No" & Dat$Q21 == "Yes") / sum(Dat$Q12 == "No" & !is.na(Dat$Q21)),1)`%)
+in the likelihood that a postdoc feels that their Stanford finances
+negatively affect them.
+
+# Qualitative responses {#qualitative}
+
+## Healthcare and childcare are other major expenses {#Q1_Q18}
+
+```{r, echo = FALSE, out.width="90%"}
+knitr::include_graphics("other_figs/wordcloud_latinx_vs_other.png")
+```
+
+* Respondents were asked *`r Questions[18]`*
+
+* 98/212 (46.2% response rate) participants responded.
+
+* 35/98 (35.7%) of responses mentioned healthcare cost for themselves or
+their dependents. For those who provided a numeric estimate, the median was
+$245 USD. 
+
+* 17/98 (17.3%) of responses mentioned childcare costs, with a range 
+between \$1,200-\$4,000 USD per month. The median cost reported was \$2,400 USD.
+
+* The wordclouds above reflect the most common words for Latinx and non-Latinx
+postdocs.
+
+## Open comments highlight financial needs and their consequences {#Q23}
+
+* At the end of the survey, respondents were asked *`r Questions[23]`*
+
+* 95/212 (44.8% response rate) participants responded.
+
+* The most common themes were:
+  1. 21/95 (22.1%) of responses stated that being a postdoc at Stanford is
+  possible because of a partner’s income and/or not having children.
+  2. 16/95 (16.8%) of responses mentioned not being able to save money for
+  emergencies.
+  3. 11/95 (11.6%) of responses mentioned that relocation assistance was needed
+  to move to the Bay Area.
+
+* Other recurrent themes included the negative mental health effects of
+financial burdens, having to live apart from immediate family, the need for
+salary to keep up with cost-of-living increases, and deciding to leave
+academia for financial reasons.
+
+* Two respondents described sacrificing needed healthcare treatments.
+
+* Two respondents mentioned going into debt as a postdoc at Stanford.
+
+* One respondent described daily dinners of instant noodles.
+
+* One respondent stated  that video games were the only coping mechanism
+available.
+
+## Additional issues {#Q23_2}
+
+* Additional issues were identified from open comments by survey
+respondents
+
+* The data in this survey shows that some postdocs do not have the resources
+to move and live in the Bay Area, and successful cases should not be used to
+dismiss the real needs of other postdocs. One responded quoted an email,
+that they received from a Stanford administrator, in which their difficulties
+to move were sarcastically dismissed.
+
+* Visiting scholars are not considered postdocs by Stanford and they have
+access to even fewer benefits when they do the same job and are in the same
+career stage as formally recognized postdocs.
+
+* In the current Stanford healthcare plan, in order for disabled partners to
+qualify, they may risk losing benefits.
+
+## Quotes {#quotes}
+
+> Based on the salaries of postdocs, I do not feel valued here at Stanford, and at times struggle with resentment and regret for pursuing my postdoc training here, given the financial debt I am forced to take on in order to learn here. Unfortunately, I doubt there will be significant change during AY22-23 for my benefit, but I am hopeful - at the very least - future change will occur so postdocs do not have to continue to struggle with this financial suffocation.
+> `r tufte::quote_footer('Latinx postdoc')`
+
+> I consider myself as a poor person here. I did not have this feeling since my bachelor period.
+> `r tufte::quote_footer('non-Latinx postdoc')`
+
+> Financial struggles are a big problem for me.
+> `r tufte::quote_footer('Latinx postdoc')`
+
+> I'm always nervous about my finances.
+> `r tufte::quote_footer('non-Latinx postdoc')`
+
+> Postdoc salary is really far from the reality to cover the crazy house rent.
+> `r tufte::quote_footer('non-Latinx postdoc')`
+
+> Minimum salary of postdocs at Stanford is not enough to cover all our expenses. In my case even when I am single and not kids, it is complicated to save a good amount of money for the future.
+> `r tufte::quote_footer('Latinx postdoc')`
+
+> As a postdoc with a child, my postdoc salary alone is not enough to cover even basic living expenses.
+> `r tufte::quote_footer('non-Latinx postdoc')`
+
+> I get paid on the higher end of the spectrum for a postdoc through my fellowship and am still living paycheck to paycheck, frequently overdrafting and this is with my partner making just about the same that I do.
+> `r tufte::quote_footer('Latinx postdoc')`
+
+> it is not really possible to put anything aside for emergencies or the future, and the thought of that is kind of unsettling at times.
+> `r tufte::quote_footer('non-Latinx postdoc')`
+
+> Childcare costs are huge. I decided to not get pregnant during my PostDoc as I wouldn't be able to sustain the costs.
+> `r tufte::quote_footer('non-Latinx postdoc')`
+
+> It is very demeaning and damaging mentally to be "poor" after all these sacrifices. Yes,, the salary is enough to get through the end of the month, but not to sleep sound. This is not a comfortable financial life.
+> `r tufte::quote_footer('non-Latinx postdoc')`
+
+> A Stanford postdoc may be setting me up for career success (although even that's a crapshoot), but it is financially ruining me. It's also hugely problematic that Stanford refuses to allow partners on the healthcare plan unless you have a legal certificate of marriage or domestic partnership. This is especially onerous for disabled partners who risk losing benefits if they marry.
+> `r tufte::quote_footer('non-Latinx postdoc')`
+
+> dual income should not be necessary to survive in this area.
+> `r tufte::quote_footer('Latinx postdoc')`
+
+> I don't think postdocs should have to depend on a well-paid spouse or generous PI to live and work here.
+> `r tufte::quote_footer('non-Latinx postdoc')`
+
+> At the end of the month I sometimes do not put a single dollar on the bank. "Extra things", like car repairing, health related expense or green card application are devastating. It's good that videogames exist.
+> `r tufte::quote_footer('non-Latinx postdoc')`
+
+> even though my situation is stable it is not stable BECAUSE of my salary as a postdoc at Stanford.
+> `r tufte::quote_footer('non-Latinx postdoc')`
+
+> I have been eating three instant noodles per week as dinner because I need to save as much as possible to buy a car for my wife.
+> `r tufte::quote_footer('non-Latinx postdoc')`
+
+> It's impossible to live normally in the Bay area without a car, which is unfordable.
+> `r tufte::quote_footer('non-Latinx postdoc')`
+
+> I think I am a very frugal person in general, but the costs of having a car, living alone in a tiny studio, and paying for student loans are enough to take up all my salary.
+> `r tufte::quote_footer('Latinx postdoc')`
+
+> Postdocs carry a large load of work. If we are adequately compensated, especially in light of inflation and high taxes in CA, it would take away all the anxiety which detracts from our ability work with some peace of mind.
+> `r tufte::quote_footer('non-Latinx postdoc')`
+
+# Technical notes {#technical}
+
+* The survey was announced on July 25th with a deadline of September 12th. However
+the survey remained open until September 19th and the last answer was recorded
+on September 17th.
+
+* The survey was anonymous and open to all Stanford postdocs. The survey
+required respondents to provide their SUNet ID credentials to access it, but
+this information was not collected.
+
+* Survey respondents were limited to one answer without the possibility of editing
+their responses.
+
+* The survey was disseminated in the official channels of the Stanford Latinx
+Postdoc Association, i.e. email listserv, Twitter, Instagram, and Slack. The
+survey was also disseminated in the SURPAS general Slack workspace, and the
+SURPAS-announcements email listserv. QR-codes with links to survey were also
+distributed in the SLPA August lonche (August 17th), and the SLPA-SURPAS
+Hispanic Heritage Month coffee (September 9th).
+
+* The following 23 questions were asked in order:
+
+```{r, echo = FALSE}
+print(as.character(Questions))
+```
+
+* Among closed questions response rate was high, with 100% response
+rate in 13 of the 21 closed questions. Only question 9 (81.6%), and
+question 13 (90.6%) had a response rate lower than 99%.
+
+* For the open questions we had 46.2% (question 18), and 44.3% (question 23)
+response rates.
+
+* For the closed questions, any group of responses with less than 5 respondents
+was grouped into a larger category. The following categories were grouped:
+
+  1. For question 7, the two smaller categories
+  ("less than \$500", "\$500-\$1000") were aggregated into "less than \$1,000".
+  2. For question 9, options "Stanford" and "Other" were aggregated into
+  "Other".
+  3. For question 11, years from 2014 to 2016 were aggregated into a single
+  category.
+  4. For question 14. values of 3 or more were grouped into the "3 or more"
+  category.
+
+* Additionally, for question 13 three respondents provided ranges
+(“+500”, “250-300”, and “less than 10”) instead of point estimates.
+These ranges were replaced by point values 500, 275 and 5.
+
+* To respect privacy, no email information was collected, timestamps were
+removed, and the results per question were reported to the analysis task force
+after independent randomization of the answer order for each question.
+
+* For cross-tabulations of multiple answers, answers to multiple (up to 3)
+questions were matched by respondent in a table with one question per column,
+and one respondent per row. Rows were then randomized independently for each
+cross-tabulation and those randomized-rows tables were provided to the
+analysis task force.
+
+* All randomizations were performed with atmospheric noise as provided by
+[random.org](www.random.org).
+
+* The code used for de-identification is [here](https://github.com/SLPA/survey2022/blob/main/code/de_identify.Rmd).
+
+* For the analysis of question 18, the median of dependent healthcare didn't
+include people who didn't report a number or who reported a range.
+
+* For the [wordclouds](#Q1_Q18) from responses to question 18,
+a number of pre-processing steps were taken. 
+You can see the code that performed all these steps
+[here](https://github.com/SLPA/survey2022/blob/main/code/wordcloud-ver1-sharecode.py), but briefly: 
+  1. Non-relevant words were filtered out.
+  2. In some cases, one word was chosen to represent multiple words
+  with the same meaning (e.g. 'partner', instead of 'spouse', 'husband',
+  or 'wife')
+  3. Stopwords of the English language were removed as defined in the nltk
+  Python library.
+  4. A step of lemmatization was performed “to reduce inflectional forms and
+  sometimes derivationally related forms of a word to a common base form.”
+
+* For the [quotes](#quotes), 20 quotes were selected from responses to
+question 23. Quotes were chosen that are representative of the issues
+highlighted by respondents. The quotes do not
+necessarily include the full comments of the respondent, but each quote is
+from one of the 94 unique responses received. Only quotes that do not
+compromise anonymity were selected. All quotes were copied verbatim from survey
+respondents. Finally, quotes were selected blinded from the Latinx identity
+of the postdocs, and that information was added back later on the report.
+The order of the quotes is random as above.
+
+* As with every survey, there are limitations:
+
+  1. The only ethnic/racial information we collect is self-identification
+  with the Latinx label. The Latinx label is not universally accepted by
+  all members of our community, and it is not directly comparable with
+  the traditional "Hispanic/Latino" label.
+  2. Intersectionality with other identity factors such as race, ethnicity,
+  sex, gender, etc. could influence our measurements, but our survey did not
+  attempt to measure those.
+  3. The differences we measure between Latinx and non-Latinx postdocs might
+  be replicated or magnified in other historically marginalized non-Latinx
+  groups, for example, but not limited to Black, Native American, Indigenous,
+  LGBTQ+ and first-generation college postdocs. Our survey did not attempt to
+  measure the characteristics of those groups.
+  4. Stanford University has around 2,400 postdocs. Thus, our survey sampled
+  just under 9% of the total postdoc population. For non-Latinx postdocs, our
+  survey recapitulates distributions measured by the SURPAS 2021/22 benefits
+  survey on number of years at Stanford, proportion of postdocs with dependents,
+  and proportion of postdocs living on campus. The differences we observed
+  can be easily explained by known cost-of-living increases across the area 
+  over this year. Thus, we think our sample size is enough to capture the
+  overall trends among the postdoc population.
+  5. The true number of Stanford Latinx postdocs is unknown. The Stanford
+  2021 IDEAL survey reported that 5.6% of respondents self-identified
+  as "Hispanic/Latino". However this label is potentially broader than "Latinx".
+  Furthermore, the Stanford Latinx Postdoc Association actively distributed
+  and encouraged its members to participate in the 2021 IDEAL survey. Thus,
+  5.6% could be an overestimate. As such, 55 responses (25.9% of this survey)
+  captures at least 41% of the Latinx postdoc community and the results
+  cannot be simply explained by respondent bias.
+  6. Our survey captures a single snapshot in time, and it is a time
+  where global, national, regional, and global trends in cost of living
+  have dramatically increased. We cannot know if the differences we
+  observe are specific to this moment.
+  7. Our survey did not include any specific questions on healthcare,
+  or childcare costs, as such we have limited quantitative data on these
+  categories, but the open responses to [question 18](#Q1_Q18) make it
+  clear that these are another major expense category.
+  
+  
+  
+  
+  
+  
+  
+
+
+
+
